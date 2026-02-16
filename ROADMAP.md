@@ -2,9 +2,35 @@
 
 Strategic development plan for the GxPDF PDF library.
 
-**Current Version**: v0.2.0 "Graphics Revolution"
+**Current Version**: v0.3.0 "Parser Hardening"
 
 ## Version History
+
+### v0.3.0 "Parser Hardening"
+
+**Released**: February 2026
+
+Major parser robustness improvements and rendering fixes:
+
+#### New: Logging Package
+- slog-based configurable logging (silent by default)
+- Error visibility for convenience methods (ExtractText, etc.)
+
+#### Image & Watermark Rendering (Writer)
+- Complete image XObject rendering (JPEG + PNG + alpha)
+- Watermark rendering with rotation and opacity
+- Fixes #36: DrawImage/DrawImageFit now work correctly
+
+#### Error Propagation
+- Public API methods properly return/log errors instead of silently failing
+- ExtractTextFromPage returns actual errors
+
+#### Parser Hardening (11 community PRs by @mikeschinkel)
+- Leading whitespace, CR line endings, trailing garbage after %%EOF
+- CMap uint16 infinite loop fix (DoS vulnerability)
+- PNG predictor support for xref streams (all 5 filter types)
+- Progressive xref stream buffer, /W [0 0 0] support
+- Off-by-one xref object recovery with lenient parsing
 
 ### v0.2.0 "Graphics Revolution"
 
@@ -52,15 +78,19 @@ Full-featured PDF library with:
 
 ## Planned Features
 
-### v0.3.0 - Digital Signatures & DX Improvements
+### v0.4.0 - Encryption Reading & Digital Signatures
 
 **Priority**: P2
+
+#### Encrypted PDF Reading
+- **Standard Security Handler** - V4/R4 AES-128 with empty password
+- **Key Derivation** - MD5/SHA-256 per PDF spec revision
+- **Stream/String Decryption** - AES-CBC before decompression
 
 #### Digital Signatures
 - **Sign PDFs** - Apply digital signatures with PKCS#12 certificates
 - **Verify Signatures** - Validate existing signatures
 - **Visible/Invisible** - Both signature types
-- **Timestamp Support** - TSA integration
 
 #### Developer Experience
 - **Fluent Text API** - Chainable text rendering
@@ -68,7 +98,7 @@ Full-featured PDF library with:
 - **Y-Cursor** - Automatic vertical positioning
 - **Simple Table API** - Easy table creation
 
-### v0.4.0 - PDF/A & Advanced Features
+### v0.5.0 - PDF/A & Advanced Features
 
 - **PDF/A-1b** - Basic archival compliance
 - **PDF/A-2b** - Extended archival compliance
@@ -76,7 +106,7 @@ Full-featured PDF library with:
 - **Invoice Template** - Pre-built invoice generation
 - **Chart Integration** - Embed charts in PDFs
 
-### v0.5.0 - Rendering & Optimization
+### v0.6.0 - Rendering & Optimization
 
 - **PDF Render** - Render PDF pages to images
 - **Barcode Generation** - QR codes, Code128, etc.
@@ -117,15 +147,22 @@ Full-featured PDF library with:
 | Form Filling | Done | v0.2.0 |
 | Form Flattening | Done | v0.2.0 |
 | WASM API | Done | v0.2.0 |
-| Digital Signatures | Planned | v0.3.0 |
-| Fluent Text API | Planned | v0.3.0 |
-| PDF/A Compliance | Planned | v0.4.0 |
-| PDF Render to Image | Planned | v0.5.0 |
+| Logging (slog) | Done | v0.3.0 |
+| Image XObject Rendering | Done | v0.3.0 |
+| Watermark Rendering | Done | v0.3.0 |
+| Error Propagation | Done | v0.3.0 |
+| Parser Hardening | Done | v0.3.0 |
+| Encrypted PDF Reading | Planned | v0.4.0 |
+| Digital Signatures | Planned | v0.4.0 |
+| Fluent Text API | Planned | v0.4.0 |
+| PDF/A Compliance | Planned | v0.5.0 |
+| PDF Render to Image | Planned | v0.6.0 |
 
-## Backlog (10 tasks)
+## Backlog (11 tasks)
 
 | ID | Feature | Priority | Description |
 |----|---------|----------|-------------|
+| feat-042 | Encrypted PDF Reading | **P2** | AES-128 with empty password |
 | feat-037 | Digital Signatures | **P2** | Sign and verify PDFs |
 | feat-062 | Fluent Text API | P3 | Chainable text methods |
 | feat-063 | Paragraph | P3 | Multi-line text container |

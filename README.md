@@ -310,7 +310,7 @@ Convenience methods like `ExtractText()`, `ExtractTables()`, and `GetImages()` l
 - [x] Watermarks
 - [x] Page operations (merge, split, rotate)
 
-### v0.2.0 "Graphics Revolution" (In Development)
+### v0.2.0 "Graphics Revolution" (Released)
 
 **Skia-like Graphics API** for [GoGPU/gg](https://github.com/gogpu/gg) integration:
 
@@ -331,7 +331,16 @@ Convenience methods like `ExtractText()`, `ExtractTables()`, and `GetImages()` l
 
 - [x] WASM API (WriteTo, Bytes for in-memory generation)
 
-### v0.3.0+ (Planned)
+### v0.3.0 "Parser Hardening" (Released)
+
+- [x] slog-based configurable logging
+- [x] Image XObject rendering (JPEG + PNG + alpha)
+- [x] Watermark rendering with rotation and opacity
+- [x] Error propagation in public API
+- [x] 11 parser robustness fixes (community contributions by @mikeschinkel)
+
+### v0.4.0+ (Planned)
+- [ ] Encrypted PDF reading
 - [ ] Digital signatures
 - [ ] PDF/A compliance
 - [ ] Object streams (30% compression)

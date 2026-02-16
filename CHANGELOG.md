@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-02-16 "Parser Hardening"
+
+### Added
+- **Logging Package** - slog-based configurable logging (#21)
+  - `logging.SetLogger()` / `logging.Logger()` API
+  - Silent by default, opt-in via `slog.Handler`
+  - All convenience methods (`ExtractText`, `ExtractTables`, `GetImages`) log errors via slog
+- **Image XObject Rendering** - Complete image rendering in Writer (#36, #37)
+  - `DrawImage()` and `DrawImageFit()` now produce visible images in PDFs
+  - JPEG support via `/Filter /DCTDecode`
+  - PNG support via `/Filter /FlateDecode` with `/SMask` for alpha channel
+  - Proper CTM transformation for positioning and scaling
+- **Watermark Rendering** - Writer now renders watermarks (#38)
+  - Text watermarks with rotation, opacity, and font support
+  - ExtGState for transparency
+- **Text Extraction Example** - Added to README
+
+### Fixed
+- **Error Propagation** - Public API no longer silently swallows errors (#35, #39)
+  - `ExtractTextFromPage()` now properly returns errors
+  - Convenience methods log errors via slog instead of discarding them
+  - `PageCount()`, `ExtractTables()`, `GetImages()` all log on failure
+- **Parser Robustness** - 9 parser fixes from community contributions (#21-#33)
+  - Leading whitespace before `%PDF-` header (#23)
+  - CR line endings in `startxref` (#25)
+  - Trailing garbage after `%%EOF` with progressive search (#27)
+  - CMap `uint16` infinite loop — DoS vulnerability fix (#28)
+  - Token position after indirect `Length` (#32)
+  - Progressive xref stream buffer 1KB→4KB (#30)
+  - `/W [0 0 0]` in xref streams (#31)
+  - PNG predictor support for xref streams — all 5 filter types (#24)
+  - Off-by-one xref object recovery with lenient parsing (#33)
+- **Redundant `min()` helper** - Removed in favor of Go 1.21+ builtin (#29)
+
+### Contributors
+- [@mikeschinkel](https://github.com/mikeschinkel) — 11 PRs merged (parser hardening, logging)
+
+---
+
 ## [0.2.1] - 2026-02-05
 
 ### Fixed
@@ -84,7 +123,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## Planned (v0.3.0+)
+## Planned (v0.4.0+)
+- Encrypted PDF reading (AES-128, empty password)
 - Digital signatures (sign and verify)
 - PDF/A compliance
 - Object streams (30% file size reduction)
@@ -194,7 +234,8 @@ Initial public release of GxPDF - a modern, enterprise-grade PDF library for Go.
 
 ---
 
-[Unreleased]: https://github.com/coregx/gxpdf/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/coregx/gxpdf/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/coregx/gxpdf/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/coregx/gxpdf/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/coregx/gxpdf/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/coregx/gxpdf/compare/v0.1.0...v0.1.1
