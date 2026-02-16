@@ -68,7 +68,7 @@ This project follows a professional Code of Conduct. By participating, you agree
 
 ### Prerequisites
 
-- **Go 1.23+** (required)
+- **Go 1.25+** (required)
 - **Git**
 - **golangci-lint** (recommended)
 
@@ -330,7 +330,8 @@ Look for [`good first issue`](https://github.com/coregx/gxpdf/labels/good%20firs
 
 ### Areas That Need Help
 
-- Digital signatures (v0.3.0)
+- Encrypted PDF reading (v0.4.0)
+- Digital signatures (v0.4.0)
 - PDF/A compliance
 - Performance optimization
 - Documentation and examples
