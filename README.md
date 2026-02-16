@@ -204,6 +204,25 @@ app.FlattenForm()  // Flatten all fields
 app.WriteToFile("flattened.pdf")
 ```
 
+### Extracting Text from PDFs
+
+```go
+doc, _ := gxpdf.Open("document.pdf")
+defer doc.Close()
+
+// Extract text from a specific page (1-based)
+text, err := doc.ExtractTextFromPage(1)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println(text)
+
+// Or iterate all pages
+for _, page := range doc.Pages() {
+    fmt.Println(page.ExtractText())
+}
+```
+
 ### Extracting Tables from PDFs
 
 ```go
@@ -268,9 +287,11 @@ import (
 )
 
 logging.SetLogger(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-    Level: slog.LevelDebug,
+    Level: slog.LevelWarn,
 })))
 ```
+
+Convenience methods like `ExtractText()`, `ExtractTables()`, and `GetImages()` log errors via slog instead of returning them. Enable logging to see why these methods return empty results.
 
 ## Roadmap
 

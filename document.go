@@ -8,6 +8,7 @@ import (
 	"github.com/coregx/gxpdf/internal/extractor"
 	"github.com/coregx/gxpdf/internal/parser"
 	"github.com/coregx/gxpdf/internal/tabledetect"
+	"github.com/coregx/gxpdf/logging"
 )
 
 // Document represents an opened PDF document.
@@ -47,9 +48,14 @@ func (d *Document) Path() string {
 }
 
 // PageCount returns the total number of pages in the document.
+//
+// Returns 0 if an error occurs. Errors are logged via slog.
 func (d *Document) PageCount() int {
 	count, err := d.reader.GetPageCount()
 	if err != nil {
+		logging.Logger().Error("failed to get page count",
+			"path", d.path,
+			"error", err)
 		return 0
 	}
 	return count
@@ -90,6 +96,8 @@ func (d *Document) Pages() []*Page {
 // This is the simplest way to extract tables - uses automatic detection
 // with the 4-Pass Hybrid algorithm for best accuracy.
 //
+// Errors are logged via slog. For error handling, use ExtractTablesWithOptions.
+//
 // Example:
 //
 //	tables := doc.ExtractTables()
@@ -98,7 +106,12 @@ func (d *Document) Pages() []*Page {
 //	        t.PageNumber(), t.RowCount(), t.ColumnCount())
 //	}
 func (d *Document) ExtractTables() []*Table {
-	tables, _ := d.ExtractTablesWithOptions(nil)
+	tables, err := d.ExtractTablesWithOptions(nil)
+	if err != nil {
+		logging.Logger().Error("failed to extract tables from document",
+			"path", d.path,
+			"error", err)
+	}
 	return tables
 }
 
@@ -185,6 +198,8 @@ func (d *Document) ExtractTablesWithOptions(opts *ExtractionOptions) ([]*Table, 
 // This is the simplest way to extract images - returns all images found
 // across all pages.
 //
+// Errors are logged via slog. For error handling, use GetImagesWithError.
+//
 // Example:
 //
 //	images := doc.GetImages()
@@ -193,7 +208,12 @@ func (d *Document) ExtractTablesWithOptions(opts *ExtractionOptions) ([]*Table, 
 //	    img.SaveToFile(fmt.Sprintf("image_%d.jpg", i))
 //	}
 func (d *Document) GetImages() []*Image {
-	images, _ := d.GetImagesWithError()
+	images, err := d.GetImagesWithError()
+	if err != nil {
+		logging.Logger().Error("failed to extract images from document",
+			"path", d.path,
+			"error", err)
+	}
 	return images
 }
 
@@ -278,20 +298,35 @@ func (d *Document) ExtractTextFromPage(pageNum int) (string, error) {
 	if pageNum < 1 || pageNum > d.PageCount() {
 		return "", fmt.Errorf("page %d out of range (1-%d)", pageNum, d.PageCount())
 	}
-	page := d.Page(pageNum - 1)
-	if page == nil {
-		return "", fmt.Errorf("page %d not found", pageNum)
+
+	// Extract directly to propagate errors
+	textExtractor := extractor.NewTextExtractor(d.reader)
+	elements, err := textExtractor.ExtractFromPage(pageNum - 1) // Convert to 0-based
+	if err != nil {
+		return "", fmt.Errorf("failed to extract text from page %d: %w", pageNum, err)
 	}
-	return page.ExtractText(), nil
+
+	var result string
+	for _, elem := range elements {
+		result += elem.Text + " "
+	}
+	return result, nil
 }
 
 // ExtractTablesFromPage extracts tables from a specific page (1-based).
+//
+// Errors are logged via slog. For error handling, use Page.ExtractTablesWithOptions.
 func (d *Document) ExtractTablesFromPage(pageNum int) []*Table {
 	if pageNum < 1 || pageNum > d.PageCount() {
+		logging.Logger().Error("page number out of range",
+			"page", pageNum,
+			"total_pages", d.PageCount())
 		return nil
 	}
 	page := d.Page(pageNum - 1)
 	if page == nil {
+		logging.Logger().Error("page not found",
+			"page", pageNum)
 		return nil
 	}
 	return page.ExtractTables()
