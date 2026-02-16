@@ -3,6 +3,7 @@ package gxpdf
 import (
 	"github.com/coregx/gxpdf/internal/extractor"
 	"github.com/coregx/gxpdf/internal/tabledetect"
+	"github.com/coregx/gxpdf/logging"
 )
 
 // Page represents a single page in a PDF document.
@@ -24,6 +25,7 @@ func (p *Page) Number() int {
 // ExtractText extracts all text from the page.
 //
 // Returns the text content as a single string.
+// Errors are logged via slog. For error handling, use Document.ExtractTextFromPage.
 //
 // Example:
 //
@@ -33,6 +35,9 @@ func (p *Page) ExtractText() string {
 	textExtractor := extractor.NewTextExtractor(p.doc.reader)
 	elements, err := textExtractor.ExtractFromPage(p.index)
 	if err != nil {
+		logging.Logger().Error("failed to extract text from page",
+			"page", p.index,
+			"error", err)
 		return ""
 	}
 
@@ -45,6 +50,8 @@ func (p *Page) ExtractText() string {
 
 // ExtractTables extracts all tables from this page.
 //
+// Errors are logged via slog. For error handling, use ExtractTablesWithOptions.
+//
 // Example:
 //
 //	tables := page.ExtractTables()
@@ -52,7 +59,12 @@ func (p *Page) ExtractText() string {
 //	    fmt.Println(t.Rows())
 //	}
 func (p *Page) ExtractTables() []*Table {
-	tables, _ := p.ExtractTablesWithOptions(nil)
+	tables, err := p.ExtractTablesWithOptions(nil)
+	if err != nil {
+		logging.Logger().Error("failed to extract tables from page",
+			"page", p.index,
+			"error", err)
+	}
 	return tables
 }
 
@@ -104,6 +116,7 @@ func (p *Page) ExtractTablesWithOptions(opts *ExtractionOptions) ([]*Table, erro
 // GetImages extracts all images from this page.
 //
 // Returns all images found on the page as a slice.
+// Errors are logged via slog. For error handling, use GetImagesWithError.
 //
 // Example:
 //
@@ -113,7 +126,12 @@ func (p *Page) ExtractTablesWithOptions(opts *ExtractionOptions) ([]*Table, erro
 //	    img.SaveToFile(fmt.Sprintf("page%d_image%d.jpg", page.Number(), i))
 //	}
 func (p *Page) GetImages() []*Image {
-	images, _ := p.GetImagesWithError()
+	images, err := p.GetImagesWithError()
+	if err != nil {
+		logging.Logger().Error("failed to extract images from page",
+			"page", p.index,
+			"error", err)
+	}
 	return images
 }
 
