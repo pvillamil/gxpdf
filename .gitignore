@@ -67,6 +67,10 @@ apply_*.py
 # Project specific
 /output/
 
+# Generated PDF output from examples (run examples to regenerate)
+/*.pdf
+examples/**/*.pdf
+
 # Archive (keep in git but don't add new files automatically)
 # /archive/
 
