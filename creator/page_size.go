@@ -164,7 +164,7 @@ const (
 // toDomainSize converts creator PageSize to domain PageSize.
 //
 // Since both enums share identical iota ordering, a direct cast is safe.
-// This is enforced by the compile-time check in the test file.
+// This is enforced by the runtime check in TestPageSize_IotaMirrorsDomain.
 func (ps PageSize) toDomainSize() document.PageSize {
 	return document.PageSize(ps)
 }
@@ -237,4 +237,31 @@ func MMToPoints(mm float64) float64 {
 //	width := creator.CMToPoints(21)  // ≈ 595 points (A4 width)
 func CMToPoints(cm float64) float64 {
 	return document.CMToPoints(cm)
+}
+
+// PointsToInches converts PDF points to inches.
+//
+// Example:
+//
+//	inches := creator.PointsToInches(612)  // 8.5 (Letter width)
+func PointsToInches(points float64) float64 {
+	return document.PointsToInches(points)
+}
+
+// PointsToMM converts PDF points to millimeters.
+//
+// Example:
+//
+//	mm := creator.PointsToMM(595)  // ≈ 210 mm (A4 width)
+func PointsToMM(points float64) float64 {
+	return document.PointsToMM(points)
+}
+
+// PointsToCM converts PDF points to centimeters.
+//
+// Example:
+//
+//	cm := creator.PointsToCM(595)  // ≈ 21 cm (A4 width)
+func PointsToCM(points float64) float64 {
+	return document.PointsToCM(points)
 }

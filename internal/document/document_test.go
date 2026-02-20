@@ -36,6 +36,32 @@ func TestDocument_AddPage(t *testing.T) {
 	assert.Equal(t, 2, doc.PageCount())
 }
 
+func TestDocument_AddPageWithRect(t *testing.T) {
+	doc := NewDocument()
+
+	// Custom 6×9 inch page (432×648 pt)
+	rect := CustomPageSize(432, 648)
+	page, err := doc.AddPageWithRect(rect)
+	require.NoError(t, err)
+	require.NotNil(t, page)
+
+	assert.Equal(t, 432.0, page.Width(), "width must match custom rect")
+	assert.Equal(t, 648.0, page.Height(), "height must match custom rect")
+	assert.Equal(t, 1, doc.PageCount(), "page count incremented")
+	assert.Equal(t, 0, page.Number(), "first page is number 0")
+
+	// Second page with different dimensions
+	rect2 := CustomPageSize(842, 595)
+	page2, err := doc.AddPageWithRect(rect2)
+	require.NoError(t, err)
+	assert.Equal(t, 842.0, page2.Width())
+	assert.Equal(t, 595.0, page2.Height())
+	assert.Equal(t, 2, doc.PageCount())
+
+	// ModDate should be updated
+	assert.False(t, doc.ModificationDate().IsZero(), "modDate should be set")
+}
+
 func TestDocument_InsertPage(t *testing.T) {
 	tests := []struct {
 		name      string

@@ -2,7 +2,6 @@ package creator
 
 import (
 	"bytes"
-	"math"
 	"testing"
 
 	"github.com/coregx/gxpdf/internal/writer"
@@ -205,17 +204,11 @@ func TestGenerateContentStream_RotationMatrix(t *testing.T) {
 		require.NoError(t, err)
 
 		// For 90° CCW: cos(90°) ≈ 0, sin(90°) = 1
-		// Matrix: [0 1 -1 0 100 400] Tm
+		// Matrix: [0.00 1.00 -1.00 0.00 100.00 400.00] Tm
 		contentStr := string(content)
 		assert.Contains(t, contentStr, "Tm", "90 degree rotation should use Tm operator")
-
-		// Verify the matrix values for 90° rotation are approximately correct.
-		// cos(90°) ≈ 6.12e-17 ≈ 0, sin(90°) = 1
-		// The stream should contain values near 0 and 1.
-		cos90 := math.Cos(90 * math.Pi / 180)
-		sin90 := math.Sin(90 * math.Pi / 180)
-		assert.InDelta(t, 0.0, cos90, 1e-10, "cos(90°) should be ~0")
-		assert.InDelta(t, 1.0, sin90, 1e-10, "sin(90°) should be 1")
+		assert.Contains(t, contentStr, "0.00 1.00 -1.00 0.00 100.00 400.00 Tm",
+			"90° matrix should be [cos sin -sin cos x y] = [0 1 -1 0 100 400]")
 	})
 
 	t.Run("45 degree rotation produces correct matrix values", func(t *testing.T) {
@@ -226,14 +219,11 @@ func TestGenerateContentStream_RotationMatrix(t *testing.T) {
 		content, _, err := writer.GenerateContentStream(textOps)
 		require.NoError(t, err)
 
+		// For 45° CCW: cos(45°) = sin(45°) ≈ 0.71
 		contentStr := string(content)
 		assert.Contains(t, contentStr, "Tm", "45 degree rotation should use Tm operator")
-
-		// For 45°: cos = sin ≈ 0.7071
-		cos45 := math.Cos(45 * math.Pi / 180)
-		sin45 := math.Sin(45 * math.Pi / 180)
-		assert.InDelta(t, math.Sqrt2/2, cos45, 1e-10, "cos(45°) = √2/2")
-		assert.InDelta(t, math.Sqrt2/2, sin45, 1e-10, "sin(45°) = √2/2")
+		assert.Contains(t, contentStr, "0.71 0.71 -0.71 0.71 200.00 300.00 Tm",
+			"45° matrix should be [cos sin -sin cos x y] ≈ [0.71 0.71 -0.71 0.71 200 300]")
 	})
 
 	t.Run("negative rotation (clockwise) also uses Tm", func(t *testing.T) {

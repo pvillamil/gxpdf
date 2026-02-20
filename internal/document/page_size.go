@@ -231,7 +231,7 @@ var pageSizeMap = map[PageSize]pageSizeData{
 // ToRectangle converts PageSize to Rectangle (in points, 1 point = 1/72 inch).
 //
 // All standard page sizes are returned in portrait orientation.
-// Use Page.SetRotation() for landscape orientation.
+// For landscape, use Creator.NewPageWithSize with the Landscape option.
 //
 // Example:
 //

@@ -346,6 +346,54 @@ func (p *Page) AddTextCustomFontColor(text string, x, y float64, font *CustomFon
 	return nil
 }
 
+// AddTextCustomFontRotated adds rotated text using an embedded TrueType/OpenType font.
+//
+// The text is rotated counter-clockwise around its origin point (x, y).
+// This is the custom font equivalent of [Page.AddTextRotated].
+//
+// Example:
+//
+//	err := page.AddTextCustomFontRotated("Sidebar", 50, 400, font, 14, 90)
+func (p *Page) AddTextCustomFontRotated(text string, x, y float64, font *CustomFont, size float64, rotation float64) error {
+	return p.AddTextCustomFontColorRotated(text, x, y, font, size, Black, rotation)
+}
+
+// AddTextCustomFontColorRotated adds colored rotated text using an embedded TrueType/OpenType font.
+//
+// The text is rotated counter-clockwise around its origin point (x, y).
+// This is the custom font equivalent of [Page.AddTextColorRotated].
+//
+// Example:
+//
+//	err := page.AddTextCustomFontColorRotated("DRAFT", 300, 400, font, 48, creator.Red, 45)
+func (p *Page) AddTextCustomFontColorRotated(text string, x, y float64, font *CustomFont, size float64, color Color, rotation float64) error {
+	if font == nil {
+		return errors.New("font cannot be nil")
+	}
+	if size <= 0 {
+		return errors.New("font size must be positive")
+	}
+	if color.R < 0 || color.R > 1 || color.G < 0 || color.G > 1 || color.B < 0 || color.B > 1 {
+		return errors.New("color components must be in range [0.0, 1.0]")
+	}
+
+	// Mark characters as used for font subsetting.
+	font.UseString(text)
+
+	// Store text operation with custom font and rotation.
+	p.textOps = append(p.textOps, TextOperation{
+		Text:       text,
+		X:          x,
+		Y:          y,
+		CustomFont: font,
+		Size:       size,
+		Color:      color,
+		Rotation:   rotation,
+	})
+
+	return nil
+}
+
 // TextOperations returns all text operations for this page.
 //
 // This is used by the writer infrastructure to generate the content stream.
