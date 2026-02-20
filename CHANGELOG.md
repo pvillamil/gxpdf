@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - Unreleased "Creator API"
+
+### Added
+- **35+ Page Sizes** - Expanded from 8 to 38 built-in page sizes
+  - ISO A series (A0–A8), ISO B series (B0–B6), ISO C/DL envelopes
+  - ANSI engineering (C, D, E), photo sizes (4×6, 5×7, 8×10)
+  - Book publishing (Digest, US Trade Book), JIS B series (B4, B5)
+  - Presentation slides (16:9, 4:3) — PowerPoint/Keynote defaults
+  - US #10 envelope, Executive, Half Letter
+  - Map-based architecture replaces dual-switch for maintainability
+- **Custom Page Dimensions** - `NewPageWithDimensions(widthPt, heightPt)` for arbitrary sizes (#41)
+  - Unit conversion helpers: `InchesToPoints`, `MMToPoints`, `CMToPoints`
+  - Reverse conversions: `PointsToInches`, `PointsToMM`, `PointsToCM`
+- **Landscape Orientation** - `NewPageWithSize(size, Landscape)` parameter (#41)
+  - Industry-standard swapped-MediaBox approach (no `/Rotate`)
+  - `Portrait` / `Landscape` typed constants
+- **Text Rotation** - `AddTextRotated` and `AddTextColorRotated` methods (#42)
+  - Uses PDF `Tm` (text matrix) operator per ISO 32000 §9.4.2
+  - Counter-clockwise rotation in degrees around origin point
+  - Custom font variants: `AddTextCustomFontRotated`, `AddTextCustomFontColorRotated`
+
+### Fixed
+- **staticcheck QF1012** - Use `fmt.Fprintf` instead of `WriteString(Sprintf)` in font descriptors and table formatting
+
+---
+
 ## [0.3.0] - 2026-02-16 "Parser Hardening"
 
 ### Added
