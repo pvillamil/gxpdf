@@ -182,6 +182,70 @@ func TestNewPageWithDimensions_ContentAreaIsCorrect(t *testing.T) {
 	assert.Equal(t, 500.0, page.ContentHeight(), "content height = 600 - 50 - 50")
 }
 
+// TestNewPageWithSize_Landscape verifies true landscape pages (swapped MediaBox, no /Rotate).
+func TestNewPageWithSize_Landscape(t *testing.T) {
+	tests := []struct {
+		name  string
+		size  PageSize
+		wantW float64
+		wantH float64
+	}{
+		{"A4 landscape", A4, 842, 595},
+		{"Letter landscape", Letter, 792, 612},
+		{"A3 landscape", A3, 1191, 842},
+		{"Tabloid landscape", Tabloid, 1224, 792},
+		{"A5 landscape", A5, 595, 420},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := New()
+			page, err := c.NewPageWithSize(tt.size, Landscape)
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantW, page.Width(), "landscape width")
+			assert.Equal(t, tt.wantH, page.Height(), "landscape height")
+			// Width must be greater than height for landscape
+			assert.Greater(t, page.Width(), page.Height(), "landscape: width > height")
+		})
+	}
+}
+
+// TestNewPageWithSize_PortraitDefault verifies that omitting orientation gives portrait.
+func TestNewPageWithSize_PortraitDefault(t *testing.T) {
+	c := New()
+	page, err := c.NewPageWithSize(A4)
+	require.NoError(t, err)
+
+	assert.Equal(t, 595.0, page.Width())
+	assert.Equal(t, 842.0, page.Height())
+	assert.Less(t, page.Width(), page.Height(), "portrait: width < height")
+}
+
+// TestNewPageWithSize_ExplicitPortrait verifies that passing Portrait explicitly works.
+func TestNewPageWithSize_ExplicitPortrait(t *testing.T) {
+	c := New()
+	page, err := c.NewPageWithSize(Letter, Portrait)
+	require.NoError(t, err)
+
+	assert.Equal(t, 612.0, page.Width())
+	assert.Equal(t, 792.0, page.Height())
+}
+
+// TestNewPageWithSize_LandscapePDFOutput verifies landscape page produces valid PDF.
+func TestNewPageWithSize_LandscapePDFOutput(t *testing.T) {
+	c := New()
+	page, err := c.NewPageWithSize(A4, Landscape)
+	require.NoError(t, err)
+
+	err = page.AddText("Landscape A4", 100, 400, Helvetica, 24)
+	require.NoError(t, err)
+
+	pdfBytes, err := c.Bytes()
+	require.NoError(t, err)
+	assert.True(t, bytes.HasPrefix(pdfBytes, []byte("%PDF-")))
+	assert.True(t, bytes.HasSuffix(bytes.TrimSpace(pdfBytes), []byte("%%EOF")))
+}
+
 // TestAddPageWithRect_DocumentLayer verifies that document.AddPageWithRect stores
 // dimensions correctly at the domain layer (unit test of the domain method directly).
 func TestAddPageWithRect_DocumentLayer(t *testing.T) {

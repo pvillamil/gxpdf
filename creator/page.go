@@ -28,13 +28,20 @@ type Page struct {
 	graphicsOps []GraphicsOperation // Graphics drawing operations
 }
 
-// SetRotation sets the page rotation.
+// SetRotation sets the page /Rotate entry.
 //
 // Valid values are 0, 90, 180, and 270 degrees (clockwise).
+// This writes a /Rotate key into the page dictionary, which tells the viewer
+// to rotate the rendered page. Content coordinates are NOT affected — text
+// placed at (100, 700) will still appear at (100, 700) in the unrotated
+// coordinate system.
+//
+// For true landscape pages (swapped width/height, natural coordinates), use
+// [Creator.NewPageWithSize] with [Landscape] instead.
 //
 // Example:
 //
-//	page.SetRotation(90) // Landscape
+//	page.SetRotation(90) // viewer rotates the page 90° clockwise
 func (p *Page) SetRotation(degrees int) error {
 	if err := p.page.SetRotation(degrees); err != nil {
 		return err
@@ -47,13 +54,14 @@ func (p *Page) SetRotation(degrees int) error {
 // Valid values are 0, 90, 180, and 270 degrees.
 // This method sets the absolute rotation, not cumulative.
 //
-// This is an alias for SetRotation() for API convenience.
+// This is an alias for [Page.SetRotation] for API convenience.
+// For true landscape pages, prefer [Creator.NewPageWithSize] with [Landscape].
 //
 // Example:
 //
-//	page.Rotate(90)  // Landscape
-//	page.Rotate(180) // Upside down
-//	page.Rotate(270) // Landscape (counter-clockwise)
+//	page.Rotate(90)  // viewer rotates 90° clockwise
+//	page.Rotate(180) // upside down
+//	page.Rotate(270) // viewer rotates 270° clockwise
 func (p *Page) Rotate(degrees int) error {
 	return p.SetRotation(degrees)
 }

@@ -174,6 +174,26 @@ func (ps PageSize) String() string {
 	return ps.toDomainSize().String()
 }
 
+// Orientation represents page orientation (portrait or landscape).
+//
+// Use as an optional parameter to NewPageWithSize to control page orientation.
+// Portrait is the default — width < height. Landscape swaps width and height
+// so that the page is wider than it is tall.
+//
+// This uses the industry-standard swapped-MediaBox approach (not /Rotate),
+// so content coordinates remain natural: (0,0) is bottom-left of the page.
+type Orientation int
+
+const (
+	// Portrait is the default page orientation (taller than wide).
+	Portrait Orientation = iota
+
+	// Landscape rotates the page so it is wider than tall.
+	// Internally this swaps MediaBox width and height — no /Rotate entry is used,
+	// so content coordinates remain natural.
+	Landscape
+)
+
 // Unit conversion constants.
 //
 // Use these with the conversion helper functions to convert between
