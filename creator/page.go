@@ -166,6 +166,70 @@ func (p *Page) AddTextColor(text string, x, y float64, font FontName, size float
 	return nil
 }
 
+// AddTextRotated adds rotated text to the page at the specified position with default black color.
+//
+// The text is rotated counter-clockwise around its origin point (x, y).
+// Positive rotation rotates counter-clockwise; negative rotation rotates clockwise.
+//
+// Parameters:
+//   - text: The string to display
+//   - x: Horizontal position in points (from left edge) — also the rotation pivot
+//   - y: Vertical position in points (from bottom edge) — also the rotation pivot
+//   - font: Font to use (one of the Standard 14 fonts)
+//   - size: Font size in points
+//   - rotation: Rotation angle in degrees, counter-clockwise
+//
+// Example:
+//
+//	// Vertical text running bottom-to-top
+//	err := page.AddTextRotated("Sideways", 100, 400, creator.Helvetica, 14, 90)
+func (p *Page) AddTextRotated(text string, x, y float64, font FontName, size float64, rotation float64) error {
+	return p.AddTextColorRotated(text, x, y, font, size, Black, rotation)
+}
+
+// AddTextColorRotated adds colored rotated text to the page at the specified position.
+//
+// The text is rotated counter-clockwise around its origin point (x, y).
+// Positive rotation rotates counter-clockwise; negative rotation rotates clockwise.
+//
+// Parameters:
+//   - text: The string to display
+//   - x: Horizontal position in points (from left edge) — also the rotation pivot
+//   - y: Vertical position in points (from bottom edge) — also the rotation pivot
+//   - font: Font to use (one of the Standard 14 fonts)
+//   - size: Font size in points
+//   - color: Text color (RGB, 0.0 to 1.0 range)
+//   - rotation: Rotation angle in degrees, counter-clockwise
+//
+// Example:
+//
+//	// Diagonal red label at 45 degrees
+//	err := page.AddTextColorRotated("DRAFT", 300, 400, creator.HelveticaBold, 48, creator.Red, 45)
+func (p *Page) AddTextColorRotated(text string, x, y float64, font FontName, size float64, color Color, rotation float64) error {
+	// Validate font size.
+	if size <= 0 {
+		return errors.New("font size must be positive")
+	}
+
+	// Validate color components.
+	if color.R < 0 || color.R > 1 || color.G < 0 || color.G > 1 || color.B < 0 || color.B > 1 {
+		return errors.New("color components must be in range [0.0, 1.0]")
+	}
+
+	// Store text operation with rotation.
+	p.textOps = append(p.textOps, TextOperation{
+		Text:     text,
+		X:        x,
+		Y:        y,
+		Font:     font,
+		Size:     size,
+		Color:    color,
+		Rotation: rotation,
+	})
+
+	return nil
+}
+
 // AddTextColorCMYK adds CMYK-colored text to the page at the specified position.
 //
 // CMYK (Cyan, Magenta, Yellow, blacK) is a subtractive color model used in
