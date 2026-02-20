@@ -39,9 +39,194 @@ const (
 	// Tabloid is 11 × 17 in (279.4 × 431.8 mm) - Also known as Ledger.
 	Tabloid
 
+	// Extended ISO A series
+
+	// A0 is 841 × 1189 mm (2384 × 3370 pt) - Largest common A-series size.
+	A0
+
+	// A1 is 594 × 841 mm (1684 × 2384 pt).
+	A1
+
+	// A2 is 420 × 594 mm (1191 × 1684 pt).
+	A2
+
+	// A6 is 105 × 148 mm (298 × 420 pt) - Postcard size.
+	A6
+
+	// A7 is 74 × 105 mm (210 × 298 pt).
+	A7
+
+	// A8 is 52 × 74 mm (147 × 210 pt).
+	A8
+
+	// Extended ISO B series
+
+	// B0 is 1000 × 1414 mm (2835 × 4008 pt).
+	B0
+
+	// B1 is 707 × 1000 mm (2004 × 2835 pt).
+	B1
+
+	// B2 is 500 × 707 mm (1417 × 2004 pt).
+	B2
+
+	// B3 is 353 × 500 mm (1001 × 1417 pt).
+	B3
+
+	// B6 is 125 × 176 mm (354 × 499 pt).
+	B6
+
+	// ISO C / Envelope sizes
+
+	// C4 is 229 × 324 mm (649 × 918 pt) - A4 envelope.
+	C4
+
+	// C5 is 162 × 229 mm (459 × 649 pt) - A5 envelope.
+	C5
+
+	// C6 is 114 × 162 mm (323 × 459 pt) - A6 envelope.
+	C6
+
+	// DL is 110 × 220 mm (312 × 624 pt) - Long envelope (fits A4 folded in thirds).
+	DL
+
+	// North American extended sizes
+
+	// Executive is 7.25 × 10.5 in (522 × 756 pt) - US executive paper.
+	Executive
+
+	// HalfLetter is 5.5 × 8.5 in (396 × 612 pt) - Half US letter.
+	HalfLetter
+
+	// ANSI Engineering sizes
+
+	// ANSIC is 17 × 22 in (1224 × 1584 pt) - ANSI C engineering drawing.
+	ANSIC
+
+	// ANSID is 22 × 34 in (1584 × 2448 pt) - ANSI D engineering drawing.
+	ANSID
+
+	// ANSIE is 34 × 44 in (2448 × 3168 pt) - ANSI E engineering drawing.
+	ANSIE
+
+	// Photo sizes
+
+	// Photo4x6 is 4 × 6 in (288 × 432 pt) - Standard 4×6 photo print.
+	Photo4x6
+
+	// Photo5x7 is 5 × 7 in (360 × 504 pt) - Standard 5×7 photo print.
+	Photo5x7
+
+	// Photo8x10 is 8 × 10 in (576 × 720 pt) - Standard 8×10 photo print.
+	Photo8x10
+
+	// Book Publishing sizes
+
+	// Digest is 5.5 × 8.5 in (396 × 612 pt) - Digest magazine size.
+	Digest
+
+	// USTradeBook is 6 × 9 in (432 × 648 pt) - Standard US trade book.
+	USTradeBook
+
+	// Presentation sizes (unique — not found in most PDF libraries)
+
+	// Slide16x9 is a widescreen presentation slide at 16:9 aspect ratio (960 × 540 pt).
+	// Equivalent to 13.33 × 7.5 inches — matches PowerPoint/Keynote widescreen default.
+	Slide16x9
+
+	// Slide4x3 is a standard presentation slide at 4:3 aspect ratio (720 × 540 pt).
+	// Equivalent to 10 × 7.5 inches — matches the traditional slide format.
+	Slide4x3
+
+	// US Envelope sizes
+
+	// Envelope10 is a #10 commercial envelope (4.125 × 9.5 in, 297 × 684 pt).
+	Envelope10
+
+	// JIS B series (Japanese Industrial Standard — different from ISO B!)
+
+	// JISB4 is 257 × 364 mm (729 × 1032 pt) - Japanese B4.
+	JISB4
+
+	// JISB5 is 182 × 257 mm (516 × 729 pt) - Japanese B5.
+	JISB5
+
 	// Custom indicates a custom page size (use CustomPageSize function).
 	Custom
 )
+
+// pageSizeData holds the display name and point dimensions for a page size.
+type pageSizeData struct {
+	name          string
+	width, height float64
+}
+
+// pageSizeMap is the single source of truth for all standard page size data.
+// Using a map eliminates duplicated switch statements across the codebase.
+var pageSizeMap = map[PageSize]pageSizeData{
+	// ISO A series (original 8)
+	A4:      {"A4", 595, 842},
+	A3:      {"A3", 842, 1191},
+	A5:      {"A5", 420, 595},
+	B4:      {"B4", 709, 1001},
+	B5:      {"B5", 499, 709},
+	Letter:  {"Letter", 612, 792},
+	Legal:   {"Legal", 612, 1008},
+	Tabloid: {"Tabloid", 792, 1224},
+
+	// Extended ISO A series
+	A0: {"A0", 2384, 3370},
+	A1: {"A1", 1684, 2384},
+	A2: {"A2", 1191, 1684},
+	A6: {"A6", 298, 420},
+	A7: {"A7", 210, 298},
+	A8: {"A8", 147, 210},
+
+	// Extended ISO B series
+	B0: {"B0", 2835, 4008},
+	B1: {"B1", 2004, 2835},
+	B2: {"B2", 1417, 2004},
+	B3: {"B3", 1001, 1417},
+	B6: {"B6", 354, 499},
+
+	// ISO C / Envelope sizes
+	C4: {"C4", 649, 918},
+	C5: {"C5", 459, 649},
+	C6: {"C6", 323, 459},
+	DL: {"DL", 312, 624},
+
+	// North American extended
+	Executive:  {"Executive", 522, 756},
+	HalfLetter: {"HalfLetter", 396, 612},
+
+	// ANSI Engineering
+	ANSIC: {"ANSIC", 1224, 1584},
+	ANSID: {"ANSID", 1584, 2448},
+	ANSIE: {"ANSIE", 2448, 3168},
+
+	// Photo
+	Photo4x6:  {"Photo4x6", 288, 432},
+	Photo5x7:  {"Photo5x7", 360, 504},
+	Photo8x10: {"Photo8x10", 576, 720},
+
+	// Book Publishing
+	Digest:      {"Digest", 396, 612},
+	USTradeBook: {"USTradeBook", 432, 648},
+
+	// Presentation (unique)
+	Slide16x9: {"Slide16x9", 960, 540},
+	Slide4x3:  {"Slide4x3", 720, 540},
+
+	// US Envelope
+	Envelope10: {"Envelope10", 297, 684},
+
+	// JIS B series
+	JISB4: {"JISB4", 729, 1032},
+	JISB5: {"JISB5", 516, 729},
+
+	// Custom placeholder
+	Custom: {"Custom", 0, 0},
+}
 
 // ToRectangle converts PageSize to Rectangle (in points, 1 point = 1/72 inch).
 //
@@ -53,69 +238,19 @@ const (
 //	rect := document.A4.ToRectangle()
 //	// rect is 595×842 points (210×297mm)
 func (ps PageSize) ToRectangle() types.Rectangle {
-	switch ps {
-	case A4:
-		// 210mm × 297mm = 8.27in × 11.69in = 595.28pt × 841.89pt ≈ 595×842pt
-		return types.MustRectangle(0, 0, 595, 842)
-
-	case A3:
-		// 297mm × 420mm = 11.69in × 16.54in = 841.89pt × 1190.55pt ≈ 842×1191pt
-		return types.MustRectangle(0, 0, 842, 1191)
-
-	case A5:
-		// 148mm × 210mm = 5.83in × 8.27in = 419.53pt × 595.28pt ≈ 420×595pt
-		return types.MustRectangle(0, 0, 420, 595)
-
-	case B4:
-		// 250mm × 353mm = 9.84in × 13.90in = 708.66pt × 1000.63pt ≈ 709×1001pt
-		return types.MustRectangle(0, 0, 709, 1001)
-
-	case B5:
-		// 176mm × 250mm = 6.93in × 9.84in = 498.90pt × 708.66pt ≈ 499×709pt
-		return types.MustRectangle(0, 0, 499, 709)
-
-	case Letter:
-		// 8.5in × 11in = 612pt × 792pt
-		return types.MustRectangle(0, 0, 612, 792)
-
-	case Legal:
-		// 8.5in × 14in = 612pt × 1008pt
-		return types.MustRectangle(0, 0, 612, 1008)
-
-	case Tabloid:
-		// 11in × 17in = 792pt × 1224pt
-		return types.MustRectangle(0, 0, 792, 1224)
-
-	default:
-		// Default to A4 if unknown size
-		return types.MustRectangle(0, 0, 595, 842)
+	if data, ok := pageSizeMap[ps]; ok && ps != Custom {
+		return types.MustRectangle(0, 0, data.width, data.height)
 	}
+	// Default to A4 if unknown or Custom (Custom must use CustomPageSize)
+	return types.MustRectangle(0, 0, 595, 842)
 }
 
 // String returns the name of the page size.
 func (ps PageSize) String() string {
-	switch ps {
-	case A4:
-		return "A4"
-	case A3:
-		return "A3"
-	case A5:
-		return "A5"
-	case B4:
-		return "B4"
-	case B5:
-		return "B5"
-	case Letter:
-		return "Letter"
-	case Legal:
-		return "Legal"
-	case Tabloid:
-		return "Tabloid"
-	case Custom:
-		return "Custom"
-	default:
-		return "Unknown"
+	if data, ok := pageSizeMap[ps]; ok {
+		return data.name
 	}
+	return "Unknown"
 }
 
 // CustomPageSize creates a custom page size in points.
