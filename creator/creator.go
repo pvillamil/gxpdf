@@ -179,6 +179,54 @@ func (c *Creator) NewPageWithSize(size PageSize) (*Page, error) {
 	return creatorPage, nil
 }
 
+// NewPageWithDimensions adds a new page with explicit width and height in PDF points.
+//
+// This is useful when no standard size fits your needs, or when importing
+// content from real-world measurements (use InchesToPoints/MMToPoints to convert).
+//
+// Parameters:
+//   - widthPt: Page width in PDF points (must be > 0)
+//   - heightPt: Page height in PDF points (must be > 0)
+//
+// Returns the newly created page or an error if dimensions are invalid.
+//
+// Example:
+//
+//	// A custom 6 × 9 inch page
+//	page, err := c.NewPageWithDimensions(
+//	    creator.InchesToPoints(6),
+//	    creator.InchesToPoints(9),
+//	)
+//
+//	// True landscape A4 (swap width/height)
+//	page, err := c.NewPageWithDimensions(842, 595)
+func (c *Creator) NewPageWithDimensions(widthPt, heightPt float64) (*Page, error) {
+	if widthPt <= 0 {
+		return nil, fmt.Errorf("page width must be positive, got %.4f", widthPt)
+	}
+	if heightPt <= 0 {
+		return nil, fmt.Errorf("page height must be positive, got %.4f", heightPt)
+	}
+
+	rect := document.CustomPageSize(widthPt, heightPt)
+
+	domainPage, err := c.doc.AddPageWithRect(rect)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add page with custom dimensions: %w", err)
+	}
+
+	creatorPage := &Page{
+		page:        domainPage,
+		margins:     c.defaultMargins,
+		textOps:     make([]TextOperation, 0),
+		graphicsOps: make([]GraphicsOperation, 0),
+	}
+
+	c.pages = append(c.pages, creatorPage)
+
+	return creatorPage, nil
+}
+
 // SetPageSize sets the default page size for new pages.
 //
 // This affects all pages added after calling this method.
@@ -817,12 +865,13 @@ func convertTextOps(ops []TextOperation) []writer.TextOp {
 	textOps := make([]writer.TextOp, 0, len(ops))
 	for _, op := range ops {
 		textOp := writer.TextOp{
-			Text:  op.Text,
-			X:     op.X,
-			Y:     op.Y,
-			Font:  string(op.Font),
-			Size:  op.Size,
-			Color: writer.RGB{R: op.Color.R, G: op.Color.G, B: op.Color.B},
+			Text:     op.Text,
+			X:        op.X,
+			Y:        op.Y,
+			Font:     string(op.Font),
+			Size:     op.Size,
+			Color:    writer.RGB{R: op.Color.R, G: op.Color.G, B: op.Color.B},
+			Rotation: op.Rotation,
 		}
 
 		// Handle custom embedded font.
