@@ -141,10 +141,13 @@ const (
 
 	// Slide16x9 is a widescreen presentation slide at 16:9 aspect ratio (960 × 540 points).
 	// Equivalent to 13.33 × 7.5 inches — matches PowerPoint/Keynote widescreen default.
+	// This size is already landscape-oriented (width > height).
+	// When exported at 2× DPI (144 dpi), this produces a 1920 × 1080 pixel image.
 	Slide16x9
 
 	// Slide4x3 is a standard presentation slide at 4:3 aspect ratio (720 × 540 points).
 	// Equivalent to 10 × 7.5 inches — matches the traditional slide format.
+	// This size is already landscape-oriented (width > height).
 	Slide4x3
 
 	// US Envelope sizes
@@ -176,12 +179,16 @@ func (ps PageSize) String() string {
 
 // Orientation represents page orientation (portrait or landscape).
 //
-// Use as an optional parameter to NewPageWithSize to control page orientation.
+// Use as an optional parameter to [Creator.NewPageWithSize] to control page orientation.
 // Portrait is the default — width < height. Landscape swaps width and height
 // so that the page is wider than it is tall.
 //
 // This uses the industry-standard swapped-MediaBox approach (not /Rotate),
 // so content coordinates remain natural: (0,0) is bottom-left of the page.
+//
+// Note: Presentation sizes ([Slide16x9], [Slide4x3]) are already landscape-oriented
+// (width > height). Passing Landscape to [Creator.NewPageWithSize] with these sizes
+// will swap them to portrait orientation, which is rarely desired for slides.
 type Orientation int
 
 const (

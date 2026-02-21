@@ -2,10 +2,26 @@ package creator
 
 import (
 	"errors"
+	"math"
 
 	"github.com/coregx/gxpdf/internal/document"
 	"github.com/coregx/gxpdf/internal/fonts"
 )
+
+// normalizeAngle converts any rotation angle to the equivalent value in [0, 360).
+//
+// This preserves the counter-clockwise positive convention used by the PDF
+// coordinate system (ISO 32000) while accepting both negative and arbitrarily
+// large angles for convenience.
+//
+// Examples: -90 → 270, 450 → 90, -270 → 90, 360 → 0.
+func normalizeAngle(deg float64) float64 {
+	deg = math.Mod(deg, 360)
+	if deg < 0 {
+		deg += 360
+	}
+	return deg
+}
 
 // Page represents a page in the PDF document being created.
 //
@@ -176,8 +192,18 @@ func (p *Page) AddTextColor(text string, x, y float64, font FontName, size float
 
 // AddTextRotated adds rotated text to the page at the specified position with default black color.
 //
-// The text is rotated counter-clockwise around its origin point (x, y).
-// Positive rotation rotates counter-clockwise; negative rotation rotates clockwise.
+// Rotation follows the PDF/PostScript mathematical convention (ISO 32000 §8.3):
+// positive angles rotate counter-clockwise, negative angles rotate clockwise.
+// Angles are normalized to [0, 360) internally — for example, -90 and 270
+// produce identical output.
+//
+// Common angles:
+//   - 90: vertical text running bottom-to-top
+//   - 270 (or -90): vertical text running top-to-bottom
+//   - 180: upside-down text
+//   - 45: diagonal text
+//
+// Fractional angles (e.g. 22.5, 33.3) are fully supported.
 //
 // Parameters:
 //   - text: The string to display
@@ -185,7 +211,7 @@ func (p *Page) AddTextColor(text string, x, y float64, font FontName, size float
 //   - y: Vertical position in points (from bottom edge) — also the rotation pivot
 //   - font: Font to use (one of the Standard 14 fonts)
 //   - size: Font size in points
-//   - rotation: Rotation angle in degrees, counter-clockwise
+//   - rotation: Rotation angle in degrees (counter-clockwise positive)
 //
 // Example:
 //
@@ -197,8 +223,10 @@ func (p *Page) AddTextRotated(text string, x, y float64, font FontName, size flo
 
 // AddTextColorRotated adds colored rotated text to the page at the specified position.
 //
-// The text is rotated counter-clockwise around its origin point (x, y).
-// Positive rotation rotates counter-clockwise; negative rotation rotates clockwise.
+// Rotation follows the PDF/PostScript mathematical convention (ISO 32000 §8.3):
+// positive angles rotate counter-clockwise, negative angles rotate clockwise.
+// Angles are normalized to [0, 360) internally — for example, -90 and 270
+// produce identical output. Fractional angles are fully supported.
 //
 // Parameters:
 //   - text: The string to display
@@ -207,7 +235,7 @@ func (p *Page) AddTextRotated(text string, x, y float64, font FontName, size flo
 //   - font: Font to use (one of the Standard 14 fonts)
 //   - size: Font size in points
 //   - color: Text color (RGB, 0.0 to 1.0 range)
-//   - rotation: Rotation angle in degrees, counter-clockwise
+//   - rotation: Rotation angle in degrees (counter-clockwise positive)
 //
 // Example:
 //
@@ -223,6 +251,9 @@ func (p *Page) AddTextColorRotated(text string, x, y float64, font FontName, siz
 	if color.R < 0 || color.R > 1 || color.G < 0 || color.G > 1 || color.B < 0 || color.B > 1 {
 		return errors.New("color components must be in range [0.0, 1.0]")
 	}
+
+	// Normalize angle to [0, 360) for consistent internal representation.
+	rotation = normalizeAngle(rotation)
 
 	// Store text operation with rotation.
 	p.textOps = append(p.textOps, TextOperation{
@@ -348,7 +379,9 @@ func (p *Page) AddTextCustomFontColor(text string, x, y float64, font *CustomFon
 
 // AddTextCustomFontRotated adds rotated text using an embedded TrueType/OpenType font.
 //
-// The text is rotated counter-clockwise around its origin point (x, y).
+// Rotation follows the PDF/PostScript mathematical convention (ISO 32000 §8.3):
+// positive angles rotate counter-clockwise, negative angles rotate clockwise.
+// Angles are normalized to [0, 360) internally. Fractional angles are supported.
 // This is the custom font equivalent of [Page.AddTextRotated].
 //
 // Example:
@@ -360,7 +393,9 @@ func (p *Page) AddTextCustomFontRotated(text string, x, y float64, font *CustomF
 
 // AddTextCustomFontColorRotated adds colored rotated text using an embedded TrueType/OpenType font.
 //
-// The text is rotated counter-clockwise around its origin point (x, y).
+// Rotation follows the PDF/PostScript mathematical convention (ISO 32000 §8.3):
+// positive angles rotate counter-clockwise, negative angles rotate clockwise.
+// Angles are normalized to [0, 360) internally. Fractional angles are supported.
 // This is the custom font equivalent of [Page.AddTextColorRotated].
 //
 // Example:
@@ -376,6 +411,9 @@ func (p *Page) AddTextCustomFontColorRotated(text string, x, y float64, font *Cu
 	if color.R < 0 || color.R > 1 || color.G < 0 || color.G > 1 || color.B < 0 || color.B > 1 {
 		return errors.New("color components must be in range [0.0, 1.0]")
 	}
+
+	// Normalize angle to [0, 360) for consistent internal representation.
+	rotation = normalizeAngle(rotation)
 
 	// Mark characters as used for font subsetting.
 	font.UseString(text)

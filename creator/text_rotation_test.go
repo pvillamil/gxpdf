@@ -2,6 +2,7 @@ package creator
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 
 	"github.com/coregx/gxpdf/internal/writer"
@@ -41,7 +42,8 @@ func TestAddTextRotated_90Degrees(t *testing.T) {
 	assert.Equal(t, 90.0, ops[0].Rotation)
 }
 
-// TestAddTextRotated_NegativeRotation verifies that negative (clockwise) rotation works.
+// TestAddTextRotated_NegativeRotation verifies that negative (clockwise) rotation
+// is normalized to its positive equivalent in [0, 360).
 func TestAddTextRotated_NegativeRotation(t *testing.T) {
 	c := New()
 	page, err := c.NewPage()
@@ -52,7 +54,7 @@ func TestAddTextRotated_NegativeRotation(t *testing.T) {
 
 	ops := page.TextOperations()
 	require.Len(t, ops, 1)
-	assert.Equal(t, -45.0, ops[0].Rotation)
+	assert.Equal(t, 315.0, ops[0].Rotation, "-45° should normalize to 315°")
 }
 
 // TestAddTextColorRotated_StoresColorCorrectly verifies color is stored alongside rotation.
@@ -161,12 +163,13 @@ func TestTextOp_RotationField_OnWriterStruct(t *testing.T) {
 
 // TestConvertTextOps_RotationPassedThrough verifies that the convertTextOps
 // function (inside creator) correctly propagates the Rotation field from
-// TextOperation to writer.TextOp.
+// TextOperation to writer.TextOp. Since normalization happens at AddText* time,
+// the values stored in TextOperation are already normalized.
 func TestConvertTextOps_RotationPassedThrough(t *testing.T) {
 	ops := []TextOperation{
 		{Text: "Normal", X: 100, Y: 700, Font: Helvetica, Size: 12, Color: Black, Rotation: 0},
 		{Text: "Rotated", X: 100, Y: 600, Font: Helvetica, Size: 12, Color: Black, Rotation: 90},
-		{Text: "Angled", X: 100, Y: 500, Font: Helvetica, Size: 12, Color: Black, Rotation: -45},
+		{Text: "Angled", X: 100, Y: 500, Font: Helvetica, Size: 12, Color: Black, Rotation: 315},
 	}
 
 	writerOps := convertTextOps(ops)
@@ -174,7 +177,7 @@ func TestConvertTextOps_RotationPassedThrough(t *testing.T) {
 
 	assert.Equal(t, 0.0, writerOps[0].Rotation, "no rotation")
 	assert.Equal(t, 90.0, writerOps[1].Rotation, "90 degree rotation")
-	assert.Equal(t, -45.0, writerOps[2].Rotation, "negative rotation")
+	assert.Equal(t, 315.0, writerOps[2].Rotation, "315 degree rotation (was -45, normalized)")
 }
 
 // TestGenerateContentStream_RotationMatrix verifies that the content stream
@@ -226,16 +229,16 @@ func TestGenerateContentStream_RotationMatrix(t *testing.T) {
 			"45° matrix should be [cos sin -sin cos x y] ≈ [0.71 0.71 -0.71 0.71 200 300]")
 	})
 
-	t.Run("negative rotation (clockwise) also uses Tm", func(t *testing.T) {
+	t.Run("330 degree rotation (equivalent to -30 clockwise) uses Tm", func(t *testing.T) {
 		textOps := []writer.TextOp{
-			{Text: "Clockwise", X: 100, Y: 500, Font: "Helvetica", Size: 12, Rotation: -30},
+			{Text: "Clockwise", X: 100, Y: 500, Font: "Helvetica", Size: 12, Rotation: 330},
 		}
 
 		content, _, err := writer.GenerateContentStream(textOps)
 		require.NoError(t, err)
 
 		contentStr := string(content)
-		assert.Contains(t, contentStr, "Tm", "negative rotation should use Tm operator")
+		assert.Contains(t, contentStr, "Tm", "330° rotation should use Tm operator")
 	})
 }
 
@@ -281,18 +284,87 @@ func TestAddTextRotated_MultipleRotationsOnOnePage(t *testing.T) {
 	page, err := c.NewPage()
 	require.NoError(t, err)
 
-	rotations := []float64{0, 30, 45, 60, 90, 120, 180, 270, -45}
+	rotations := []float64{0, 30, 45, 60, 90, 120, 180, 270, -45, 22.5}
 	for _, rot := range rotations {
 		err = page.AddTextRotated("Text", 300, 400, Helvetica, 12, rot)
-		require.NoError(t, err, "rotation %.0f should not error", rot)
+		require.NoError(t, err, "rotation %.1f should not error", rot)
 	}
 
 	ops := page.TextOperations()
 	assert.Len(t, ops, len(rotations))
 
+	// Verify -45 was normalized to 315.
+	assert.Equal(t, 315.0, ops[8].Rotation, "-45° should normalize to 315°")
+	// Verify fractional angle is preserved.
+	assert.Equal(t, 22.5, ops[9].Rotation, "22.5° should stay 22.5°")
+
 	pdfBytes, err := c.Bytes()
 	require.NoError(t, err)
 	assert.True(t, bytes.HasPrefix(pdfBytes, []byte("%PDF-")))
+}
+
+// TestNormalizeAngle verifies that normalizeAngle correctly maps any angle to [0, 360).
+func TestNormalizeAngle(t *testing.T) {
+	tests := []struct {
+		input    float64
+		expected float64
+	}{
+		{0, 0},
+		{90, 90},
+		{180, 180},
+		{270, 270},
+		{360, 0},
+		{-90, 270},
+		{-45, 315},
+		{-180, 180},
+		{-270, 90},
+		{-360, 0},
+		{450, 90},
+		{720, 0},
+		{-450, 270},
+		{45.5, 45.5},
+		{-22.5, 337.5},
+		{359.9, 359.9},
+	}
+
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%.1f→%.1f", tt.input, tt.expected), func(t *testing.T) {
+			got := normalizeAngle(tt.input)
+			assert.InDelta(t, tt.expected, got, 0.0001,
+				"normalizeAngle(%.1f) should be %.1f", tt.input, tt.expected)
+		})
+	}
+}
+
+// TestAddTextRotated_NormalizationEquivalence verifies that negative and positive
+// angles that are mathematically equivalent produce identical TextOperations.
+func TestAddTextRotated_NormalizationEquivalence(t *testing.T) {
+	equivalentPairs := [][2]float64{
+		{-90, 270},
+		{-45, 315},
+		{-180, 180},
+		{-270, 90},
+		{450, 90},
+	}
+
+	for _, pair := range equivalentPairs {
+		t.Run(fmt.Sprintf("%.0f_equals_%.0f", pair[0], pair[1]), func(t *testing.T) {
+			c := New()
+			page1, _ := c.NewPage()
+			page2, _ := c.NewPage()
+
+			err1 := page1.AddTextRotated("Test", 100, 400, Helvetica, 12, pair[0])
+			err2 := page2.AddTextRotated("Test", 100, 400, Helvetica, 12, pair[1])
+			require.NoError(t, err1)
+			require.NoError(t, err2)
+
+			ops1 := page1.TextOperations()
+			ops2 := page2.TextOperations()
+
+			assert.Equal(t, ops1[0].Rotation, ops2[0].Rotation,
+				"%.0f° and %.0f° should produce identical stored rotation", pair[0], pair[1])
+		})
+	}
 }
 
 // TestAddText_RegressionNoRotation verifies that existing AddText (no rotation)

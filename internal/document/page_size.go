@@ -132,10 +132,13 @@ const (
 
 	// Slide16x9 is a widescreen presentation slide at 16:9 aspect ratio (960 × 540 pt).
 	// Equivalent to 13.33 × 7.5 inches — matches PowerPoint/Keynote widescreen default.
+	// This size is already landscape-oriented (width > height).
+	// When exported at 2× DPI (144 dpi), this produces a 1920 × 1080 pixel image.
 	Slide16x9
 
 	// Slide4x3 is a standard presentation slide at 4:3 aspect ratio (720 × 540 pt).
 	// Equivalent to 10 × 7.5 inches — matches the traditional slide format.
+	// This size is already landscape-oriented (width > height).
 	Slide4x3
 
 	// US Envelope sizes
