@@ -9,10 +9,10 @@
 //	c.SetTitle("My Document")
 //	c.SetAuthor("John Doe")
 //
-//	page := c.NewPage(creator.A4)
+//	page, err := c.NewPageWithSize(creator.A4)
 //	// Add content to page...
 //
-//	err := c.WriteToFile("output.pdf")
+//	err = c.WriteToFile("output.pdf")
 package creator
 
 import (
@@ -152,16 +152,38 @@ func (c *Creator) NewPage() (*Page, error) {
 	return creatorPage, nil
 }
 
-// NewPageWithSize adds a new page with a specific size.
+// NewPageWithSize adds a new page with a specific standard size and optional orientation.
 //
-// This overrides the default page size for this specific page.
+// By default pages are created in portrait orientation (taller than wide).
+// Pass [Landscape] to create a true landscape page with swapped width and height.
+// This uses the industry-standard swapped-MediaBox approach — no /Rotate entry
+// is written, so content coordinates remain natural.
 //
 // Example:
 //
-//	page := c.NewPageWithSize(creator.Letter)
-func (c *Creator) NewPageWithSize(size PageSize) (*Page, error) {
-	domainSize := size.toDomainSize()
-	domainPage, err := c.doc.AddPage(domainSize)
+//	page, err := c.NewPageWithSize(creator.Letter)                    // portrait
+//	page, err := c.NewPageWithSize(creator.A4, creator.Landscape)    // 842 × 595 pt
+//	page, err := c.NewPageWithSize(creator.Letter, creator.Landscape) // 792 × 612 pt
+func (c *Creator) NewPageWithSize(size PageSize, orientation ...Orientation) (*Page, error) {
+	orient := Portrait
+	if len(orientation) > 0 {
+		orient = orientation[0]
+	}
+
+	var domainPage *document.Page
+	var err error
+
+	if orient == Landscape {
+		domainSize := size.toDomainSize()
+		rect := domainSize.ToRectangle()
+		// Swap width and height: portrait (595×842) → landscape (842×595)
+		landscapeRect := document.CustomPageSize(rect.Height(), rect.Width())
+		domainPage, err = c.doc.AddPageWithRect(landscapeRect)
+	} else {
+		domainSize := size.toDomainSize()
+		domainPage, err = c.doc.AddPage(domainSize)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to add page: %w", err)
 	}
@@ -173,7 +195,54 @@ func (c *Creator) NewPageWithSize(size PageSize) (*Page, error) {
 		graphicsOps: make([]GraphicsOperation, 0),
 	}
 
-	// Track creator page
+	c.pages = append(c.pages, creatorPage)
+
+	return creatorPage, nil
+}
+
+// NewPageWithDimensions adds a new page with explicit width and height in PDF points.
+//
+// This is useful when no standard size fits your needs, or when importing
+// content from real-world measurements (use InchesToPoints/MMToPoints to convert).
+//
+// Parameters:
+//   - widthPt: Page width in PDF points (must be > 0)
+//   - heightPt: Page height in PDF points (must be > 0)
+//
+// Returns the newly created page or an error if dimensions are invalid.
+//
+// Example:
+//
+//	// A custom 6 × 9 inch page
+//	page, err := c.NewPageWithDimensions(
+//	    creator.InchesToPoints(6),
+//	    creator.InchesToPoints(9),
+//	)
+//
+// For standard sizes in landscape orientation, prefer [Creator.NewPageWithSize]
+// with the [Landscape] option instead of swapping dimensions manually.
+func (c *Creator) NewPageWithDimensions(widthPt, heightPt float64) (*Page, error) {
+	if widthPt <= 0 {
+		return nil, fmt.Errorf("page width must be positive, got %.4f", widthPt)
+	}
+	if heightPt <= 0 {
+		return nil, fmt.Errorf("page height must be positive, got %.4f", heightPt)
+	}
+
+	rect := document.CustomPageSize(widthPt, heightPt)
+
+	domainPage, err := c.doc.AddPageWithRect(rect)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add page with custom dimensions: %w", err)
+	}
+
+	creatorPage := &Page{
+		page:        domainPage,
+		margins:     c.defaultMargins,
+		textOps:     make([]TextOperation, 0),
+		graphicsOps: make([]GraphicsOperation, 0),
+	}
+
 	c.pages = append(c.pages, creatorPage)
 
 	return creatorPage, nil
@@ -817,12 +886,13 @@ func convertTextOps(ops []TextOperation) []writer.TextOp {
 	textOps := make([]writer.TextOp, 0, len(ops))
 	for _, op := range ops {
 		textOp := writer.TextOp{
-			Text:  op.Text,
-			X:     op.X,
-			Y:     op.Y,
-			Font:  string(op.Font),
-			Size:  op.Size,
-			Color: writer.RGB{R: op.Color.R, G: op.Color.G, B: op.Color.B},
+			Text:     op.Text,
+			X:        op.X,
+			Y:        op.Y,
+			Font:     string(op.Font),
+			Size:     op.Size,
+			Color:    writer.RGB{R: op.Color.R, G: op.Color.G, B: op.Color.B},
+			Rotation: op.Rotation,
 		}
 
 		// Handle custom embedded font.

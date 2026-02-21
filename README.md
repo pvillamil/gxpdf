@@ -27,6 +27,10 @@
 - **Interactive Forms** - Text fields, checkboxes, radio buttons, dropdowns
 - **Security** - RC4 (40/128-bit) and AES (128/256-bit) encryption
 - **Watermarks** - Text watermarks with rotation and opacity
+- **Page Sizes** - 35+ built-in sizes (ISO A/B/C, ANSI, photo, book, JIS, envelopes, slides)
+- **Custom Dimensions** - Arbitrary page sizes with unit conversion helpers (inches, mm, cm)
+- **Landscape/Portrait** - True landscape via `NewPageWithSize(A4, Landscape)` — industry-standard swapped-MediaBox
+- **Text Rotation** - Rotated text at any angle via `Tm` operator (standard 14 + custom TTF fonts)
 - **Page Operations** - Merge, split, rotate, append
 
 ### PDF Reading & Extraction
@@ -339,7 +343,14 @@ Convenience methods like `ExtractText()`, `ExtractTables()`, and `GetImages()` l
 - [x] Error propagation in public API
 - [x] 11 parser robustness fixes (community contributions by @mikeschinkel)
 
-### v0.4.0+ (Planned)
+### v0.4.0 "Creator API" (In Development)
+
+- [x] 35+ built-in page sizes (ISO A/B/C, ANSI, photo, book, JIS, envelopes, slides)
+- [x] Custom page dimensions with unit conversions
+- [x] Landscape/Portrait orientation support
+- [x] Text rotation (AddTextRotated, AddTextColorRotated)
+
+### v0.5.0+ (Planned)
 - [ ] Encrypted PDF reading
 - [ ] Digital signatures
 - [ ] PDF/A compliance

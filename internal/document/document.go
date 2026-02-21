@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/coregx/gxpdf/internal/models/content"
 	"github.com/coregx/gxpdf/internal/models/types"
 )
 
@@ -78,6 +79,35 @@ func NewDocument() *Document {
 //	// Use page...
 func (d *Document) AddPage(pageSize PageSize) (*Page, error) {
 	page := NewPage(len(d.pages), pageSize)
+	d.pages = append(d.pages, page)
+	d.modDate = time.Now()
+	return page, nil
+}
+
+// AddPageWithRect adds a new page to the document with explicitly specified dimensions.
+//
+// widthPt and heightPt are the page dimensions in PDF points (1 pt = 1/72 inch).
+// Use CustomPageSize to build the rectangle, or InchesToPoints/MMToPoints to convert.
+//
+// Returns the newly created page for method chaining.
+//
+// Example:
+//
+//	// A custom 6×9 inch page
+//	rect := document.CustomPageSize(6*72, 9*72)
+//	page, err := doc.AddPageWithRect(rect)
+func (d *Document) AddPageWithRect(rect types.Rectangle) (*Page, error) {
+	page := &Page{
+		number:            len(d.pages),
+		mediaBox:          rect,
+		rotation:          0,
+		contents:          make([]content.Content, 0),
+		linkAnnotations:   make([]*LinkAnnotation, 0),
+		textAnnotations:   make([]*TextAnnotation, 0),
+		markupAnnotations: make([]*MarkupAnnotation, 0),
+		stampAnnotations:  make([]*StampAnnotation, 0),
+		formFields:        make([]*FormField, 0),
+	}
 	d.pages = append(d.pages, page)
 	d.modDate = time.Now()
 	return page, nil

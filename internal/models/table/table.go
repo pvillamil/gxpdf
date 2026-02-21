@@ -178,16 +178,16 @@ func (t *Table) ToStringGrid() [][]string {
 // String returns a string representation of the table (for debugging).
 func (t *Table) String() string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("Table{rows=%d, cols=%d, method=%s, page=%d}\n",
-		t.RowCount, t.ColCount, t.Method, t.PageNum))
+	fmt.Fprintf(&sb, "Table{rows=%d, cols=%d, method=%s, page=%d}\n",
+		t.RowCount, t.ColCount, t.Method, t.PageNum)
 
 	for r, row := range t.Rows {
-		sb.WriteString(fmt.Sprintf("  Row %d: [", r))
+		fmt.Fprintf(&sb, "  Row %d: [", r)
 		for c, cell := range row {
 			if c > 0 {
 				sb.WriteString(", ")
 			}
-			sb.WriteString(fmt.Sprintf("%q", cell.Text))
+			fmt.Fprintf(&sb, "%q", cell.Text)
 		}
 		sb.WriteString("]\n")
 	}

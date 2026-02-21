@@ -76,9 +76,36 @@ Full-featured PDF library with:
 - Multiple export formats
 - DDD architecture
 
+## Current Development
+
+### v0.4.0 "Creator API"
+
+**Status**: In Development
+
+#### 35+ Built-in Page Sizes
+- **ISO A series** (A0–A8), **B series** (B0–B6), **C/DL envelopes**
+- **ANSI engineering** (C, D, E), **US sizes** (Letter, Legal, Tabloid, Executive, Half Letter)
+- **Photo** (4×6, 5×7, 8×10), **Book publishing** (Digest, US Trade Book)
+- **Presentation slides** (16:9, 4:3) — PowerPoint/Keynote defaults
+- **JIS B series** (B4, B5), **US #10 envelope**
+- Map-based architecture for maintainability
+
+#### Custom Page Dimensions (#41)
+- `NewPageWithDimensions(widthPt, heightPt)` for arbitrary sizes
+- Unit conversion helpers: `InchesToPoints`, `MMToPoints`, `CMToPoints` + reverse
+
+#### Landscape Orientation (#41)
+- `NewPageWithSize(size, Landscape)` — industry-standard approach
+- True landscape via swapped MediaBox (no `/Rotate`)
+
+#### Text Rotation (#42)
+- `AddTextRotated` / `AddTextColorRotated` — standard 14 fonts
+- `AddTextCustomFontRotated` / `AddTextCustomFontColorRotated` — TTF/OTF fonts
+- Uses PDF `Tm` operator per ISO 32000 §9.4.2
+
 ## Planned Features
 
-### v0.4.0 - Encryption Reading & Digital Signatures
+### v0.5.0 - Encryption Reading & Digital Signatures
 
 **Priority**: P2
 
@@ -98,7 +125,7 @@ Full-featured PDF library with:
 - **Y-Cursor** - Automatic vertical positioning
 - **Simple Table API** - Easy table creation
 
-### v0.5.0 - PDF/A & Advanced Features
+### v0.6.0 - PDF/A & Advanced Features
 
 - **PDF/A-1b** - Basic archival compliance
 - **PDF/A-2b** - Extended archival compliance
@@ -106,7 +133,7 @@ Full-featured PDF library with:
 - **Invoice Template** - Pre-built invoice generation
 - **Chart Integration** - Embed charts in PDFs
 
-### v0.6.0 - Rendering & Optimization
+### v0.7.0 - Rendering & Optimization
 
 - **PDF Render** - Render PDF pages to images
 - **Barcode Generation** - QR codes, Code128, etc.
@@ -152,27 +179,34 @@ Full-featured PDF library with:
 | Watermark Rendering | Done | v0.3.0 |
 | Error Propagation | Done | v0.3.0 |
 | Parser Hardening | Done | v0.3.0 |
-| Encrypted PDF Reading | Planned | v0.4.0 |
-| Digital Signatures | Planned | v0.4.0 |
-| Fluent Text API | Planned | v0.4.0 |
-| PDF/A Compliance | Planned | v0.5.0 |
-| PDF Render to Image | Planned | v0.6.0 |
+| 35+ Page Sizes | Done | v0.4.0 |
+| Custom Page Dimensions | Done | v0.4.0 |
+| Landscape/Portrait | Done | v0.4.0 |
+| Text Rotation | Done | v0.4.0 |
+| Encrypted PDF Reading | Planned | v0.5.0 |
+| Digital Signatures | Planned | v0.5.0 |
+| Fluent Text API | Planned | v0.5.0 |
+| PDF/A Compliance | Planned | v0.6.0 |
+| PDF Render to Image | Planned | v0.7.0 |
 
 ## Backlog (11 tasks)
 
-| ID | Feature | Priority | Description |
-|----|---------|----------|-------------|
-| feat-042 | Encrypted PDF Reading | **P2** | AES-128 with empty password |
-| feat-037 | Digital Signatures | **P2** | Sign and verify PDFs |
-| feat-062 | Fluent Text API | P3 | Chainable text methods |
-| feat-063 | Paragraph | P3 | Multi-line text container |
-| feat-064 | Y-Cursor | P3 | Auto vertical positioning |
-| feat-065 | Simple Table API | P3 | Easy table creation |
-| feat-066 | Shape Builders | P3 | Fluent shape construction |
-| feat-036 | SVG Import | P3 | Vector graphics import |
-| feat-039 | Invoice Template | P3 | Pre-built invoice |
-| feat-040 | Chart Integration | P3 | Embed charts |
-| feat-041 | PDF Render | P3 | Render to images |
+| ID | Feature | Priority | Status | Description |
+|----|---------|----------|--------|-------------|
+| feat-067 | Custom Page Dimensions | **P1** | **Done** | Arbitrary page sizes (#41) |
+| feat-068 | Text Rotation | **P1** | **Done** | Rotated text via Tm operator (#42) |
+| feat-069 | Paper Sizes Expansion | **P1** | **Done** | 35+ built-in page sizes |
+| feat-042 | Encrypted PDF Reading | **P2** | Backlog | AES-128 with empty password |
+| feat-037 | Digital Signatures | **P2** | Backlog | Sign and verify PDFs |
+| feat-062 | Fluent Text API | P3 | Backlog | Chainable text methods |
+| feat-063 | Paragraph | P3 | Backlog | Multi-line text container |
+| feat-064 | Y-Cursor | P3 | Backlog | Auto vertical positioning |
+| feat-065 | Simple Table API | P3 | Backlog | Easy table creation |
+| feat-066 | Shape Builders | P3 | Backlog | Fluent shape construction |
+| feat-036 | SVG Import | P3 | Backlog | Vector graphics import |
+| feat-039 | Invoice Template | P3 | Backlog | Pre-built invoice |
+| feat-040 | Chart Integration | P3 | Backlog | Embed charts |
+| feat-041 | PDF Render | P3 | Backlog | Render to images |
 
 ## Architecture
 

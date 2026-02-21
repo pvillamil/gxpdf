@@ -120,22 +120,22 @@ func (fd *FontDescriptor) ToPDFDict(fontFile2ObjNum int) string {
 
 	sb.WriteString("<<\n")
 	sb.WriteString("/Type /FontDescriptor\n")
-	sb.WriteString(fmt.Sprintf("/FontName /%s\n", fd.FontName))
-	sb.WriteString(fmt.Sprintf("/Flags %d\n", fd.Flags))
-	sb.WriteString(fmt.Sprintf("/FontBBox [%d %d %d %d]\n",
-		fd.FontBBox[0], fd.FontBBox[1], fd.FontBBox[2], fd.FontBBox[3]))
-	sb.WriteString(fmt.Sprintf("/ItalicAngle %.1f\n", fd.ItalicAngle))
-	sb.WriteString(fmt.Sprintf("/Ascent %d\n", fd.Ascent))
-	sb.WriteString(fmt.Sprintf("/Descent %d\n", fd.Descent))
-	sb.WriteString(fmt.Sprintf("/CapHeight %d\n", fd.CapHeight))
-	sb.WriteString(fmt.Sprintf("/StemV %d\n", fd.StemV))
+	fmt.Fprintf(&sb, "/FontName /%s\n", fd.FontName)
+	fmt.Fprintf(&sb, "/Flags %d\n", fd.Flags)
+	fmt.Fprintf(&sb, "/FontBBox [%d %d %d %d]\n",
+		fd.FontBBox[0], fd.FontBBox[1], fd.FontBBox[2], fd.FontBBox[3])
+	fmt.Fprintf(&sb, "/ItalicAngle %.1f\n", fd.ItalicAngle)
+	fmt.Fprintf(&sb, "/Ascent %d\n", fd.Ascent)
+	fmt.Fprintf(&sb, "/Descent %d\n", fd.Descent)
+	fmt.Fprintf(&sb, "/CapHeight %d\n", fd.CapHeight)
+	fmt.Fprintf(&sb, "/StemV %d\n", fd.StemV)
 
 	if fd.XHeight > 0 {
-		sb.WriteString(fmt.Sprintf("/XHeight %d\n", fd.XHeight))
+		fmt.Fprintf(&sb, "/XHeight %d\n", fd.XHeight)
 	}
 
 	if fontFile2ObjNum > 0 {
-		sb.WriteString(fmt.Sprintf("/FontFile2 %d 0 R\n", fontFile2ObjNum))
+		fmt.Fprintf(&sb, "/FontFile2 %d 0 R\n", fontFile2ObjNum)
 	}
 
 	sb.WriteString(">>")

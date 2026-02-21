@@ -401,4 +401,12 @@ type TextOperation struct {
 	// Works with both Color and ColorCMYK.
 	// Range: [0.0, 1.0]
 	Opacity *float64
+
+	// Rotation is the text rotation in degrees, counter-clockwise.
+	// The rotation pivot is the text origin point (X, Y).
+	// Zero means no rotation (default horizontal text).
+	// Positive values rotate counter-clockwise; negative values rotate clockwise.
+	//
+	// Example: 90 degrees rotates text to read bottom-to-top.
+	Rotation float64
 }

@@ -40,6 +40,11 @@ type TextOp struct {
 	// When set, this takes precedence over the Font field.
 	// The font must be registered with the document before use.
 	CustomFont *EmbeddedFont
+
+	// Rotation is the text rotation in degrees, counter-clockwise.
+	// Zero means standard horizontal text (Td operator).
+	// Non-zero values use the Tm (text matrix) operator instead.
+	Rotation float64
 }
 
 // EmbeddedFont represents a custom TrueType/OpenType font for embedding.
@@ -287,8 +292,18 @@ func GenerateContentStreamWithGraphics(textOps []TextOp, graphicsOps []GraphicsO
 		// Set font and size
 		csw.SetFont(fontResName, op.Size)
 
-		// Set position
-		csw.MoveTextPosition(op.X, op.Y)
+		// Set position (use text matrix for rotation, Td for normal text)
+		if op.Rotation != 0 {
+			radians := op.Rotation * math.Pi / 180.0
+			cos := math.Cos(radians)
+			sin := math.Sin(radians)
+			// Tm sets both the text matrix and text line matrix.
+			// Parameters: a b c d e f  →  [a b 0; c d 0; e f 1]
+			// For counter-clockwise rotation: [cos sin -sin cos x y]
+			csw.SetTextMatrix(cos, sin, -sin, cos, op.X, op.Y)
+		} else {
+			csw.MoveTextPosition(op.X, op.Y)
+		}
 
 		// Show text (for custom fonts, encode using glyph IDs)
 		if op.CustomFont != nil {
