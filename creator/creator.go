@@ -915,6 +915,11 @@ func convertTextOps(ops []TextOperation) []writer.TextOp {
 			}
 		}
 
+		// Propagate opacity if set.
+		if op.Opacity != nil {
+			textOp.Opacity = *op.Opacity
+		}
+
 		textOps = append(textOps, textOp)
 	}
 	return textOps

@@ -432,6 +432,198 @@ func (p *Page) AddTextCustomFontColorRotated(text string, x, y float64, font *Cu
 	return nil
 }
 
+// AddTextColorAlpha adds colored text with opacity to the page.
+//
+// Opacity controls the transparency level of the text (ISO 32000 §11.6.4.4):
+//   - 1.0 = fully opaque (default)
+//   - 0.5 = 50% transparent
+//   - 0.0 = fully transparent
+//
+// The opacity is implemented via an ExtGState resource with /ca (fill alpha)
+// and /CA (stroke alpha) keys. Values are clamped to [0.0, 1.0].
+//
+// Parameters:
+//   - text: The string to display
+//   - x: Horizontal position in points (from left edge)
+//   - y: Vertical position in points (from bottom edge)
+//   - font: Font to use (one of the Standard 14 fonts)
+//   - size: Font size in points
+//   - color: Text color (RGB, 0.0 to 1.0 range)
+//   - opacity: Transparency level (0.0 to 1.0)
+//
+// Example:
+//
+//	// Semi-transparent watermark text
+//	err := page.AddTextColorAlpha("DRAFT", 200, 400, creator.HelveticaBold, 48, creator.Gray, 0.3)
+func (p *Page) AddTextColorAlpha(text string, x, y float64, font FontName, size float64, color Color, opacity float64) error {
+	if size <= 0 {
+		return errors.New("font size must be positive")
+	}
+	if color.R < 0 || color.R > 1 || color.G < 0 || color.G > 1 || color.B < 0 || color.B > 1 {
+		return errors.New("color components must be in range [0.0, 1.0]")
+	}
+	if err := validateOpacity(&opacity); err != nil {
+		return err
+	}
+
+	p.textOps = append(p.textOps, TextOperation{
+		Text:    text,
+		X:       x,
+		Y:       y,
+		Font:    font,
+		Size:    size,
+		Color:   color,
+		Opacity: &opacity,
+	})
+
+	return nil
+}
+
+// AddTextColorRotatedAlpha adds colored rotated text with opacity to the page.
+//
+// Combines rotation (ISO 32000 §8.3) and opacity (ISO 32000 §11.6.4.4).
+// Rotation angles are normalized to [0, 360). Opacity is clamped to [0.0, 1.0].
+//
+// Parameters:
+//   - text: The string to display
+//   - x: Horizontal position in points (from left edge) — also the rotation pivot
+//   - y: Vertical position in points (from bottom edge) — also the rotation pivot
+//   - font: Font to use (one of the Standard 14 fonts)
+//   - size: Font size in points
+//   - color: Text color (RGB, 0.0 to 1.0 range)
+//   - rotation: Rotation angle in degrees (counter-clockwise positive)
+//   - opacity: Transparency level (0.0 to 1.0)
+//
+// Example:
+//
+//	// Diagonal semi-transparent watermark
+//	err := page.AddTextColorRotatedAlpha("CONFIDENTIAL", 300, 400, creator.HelveticaBold, 36, creator.Red, 45, 0.2)
+func (p *Page) AddTextColorRotatedAlpha(text string, x, y float64, font FontName, size float64, color Color, rotation, opacity float64) error {
+	if size <= 0 {
+		return errors.New("font size must be positive")
+	}
+	if color.R < 0 || color.R > 1 || color.G < 0 || color.G > 1 || color.B < 0 || color.B > 1 {
+		return errors.New("color components must be in range [0.0, 1.0]")
+	}
+	if err := validateOpacity(&opacity); err != nil {
+		return err
+	}
+
+	rotation = normalizeAngle(rotation)
+
+	p.textOps = append(p.textOps, TextOperation{
+		Text:     text,
+		X:        x,
+		Y:        y,
+		Font:     font,
+		Size:     size,
+		Color:    color,
+		Rotation: rotation,
+		Opacity:  &opacity,
+	})
+
+	return nil
+}
+
+// AddTextCustomFontColorAlpha adds colored text with opacity using an embedded TrueType/OpenType font.
+//
+// Supports Unicode text (Cyrillic, CJK, Arabic, symbols) with transparency.
+// Opacity is implemented via ExtGState (ISO 32000 §11.6.4.4).
+//
+// Parameters:
+//   - text: The string to display (supports Unicode)
+//   - x: Horizontal position in points (from left edge)
+//   - y: Vertical position in points (from bottom edge)
+//   - font: Custom font loaded via LoadFont()
+//   - size: Font size in points
+//   - color: Text color (RGB, 0.0 to 1.0 range)
+//   - opacity: Transparency level (0.0 to 1.0)
+//
+// Example:
+//
+//	font, _ := creator.LoadFont("fonts/OpenSans-Regular.ttf")
+//	err := page.AddTextCustomFontColorAlpha("Полупрозрачный", 100, 700, font, 24, creator.Blue, 0.5)
+func (p *Page) AddTextCustomFontColorAlpha(text string, x, y float64, font *CustomFont, size float64, color Color, opacity float64) error {
+	if font == nil {
+		return errors.New("font cannot be nil")
+	}
+	if size <= 0 {
+		return errors.New("font size must be positive")
+	}
+	if color.R < 0 || color.R > 1 || color.G < 0 || color.G > 1 || color.B < 0 || color.B > 1 {
+		return errors.New("color components must be in range [0.0, 1.0]")
+	}
+	if err := validateOpacity(&opacity); err != nil {
+		return err
+	}
+
+	font.UseString(text)
+
+	p.textOps = append(p.textOps, TextOperation{
+		Text:       text,
+		X:          x,
+		Y:          y,
+		CustomFont: font,
+		Size:       size,
+		Color:      color,
+		Opacity:    &opacity,
+	})
+
+	return nil
+}
+
+// AddTextCustomFontColorRotatedAlpha adds colored rotated text with opacity using an embedded font.
+//
+// Combines custom font support, rotation, and opacity. This is the most flexible
+// text method, supporting Unicode, rotation (ISO 32000 §8.3), and transparency
+// (ISO 32000 §11.6.4.4) simultaneously.
+//
+// Parameters:
+//   - text: The string to display (supports Unicode)
+//   - x: Horizontal position in points (from left edge) — also the rotation pivot
+//   - y: Vertical position in points (from bottom edge) — also the rotation pivot
+//   - font: Custom font loaded via LoadFont()
+//   - size: Font size in points
+//   - color: Text color (RGB, 0.0 to 1.0 range)
+//   - rotation: Rotation angle in degrees (counter-clockwise positive)
+//   - opacity: Transparency level (0.0 to 1.0)
+//
+// Example:
+//
+//	font, _ := creator.LoadFont("fonts/OpenSans-Bold.ttf")
+//	err := page.AddTextCustomFontColorRotatedAlpha("DRAFT", 300, 400, font, 48, creator.Red, 45, 0.3)
+func (p *Page) AddTextCustomFontColorRotatedAlpha(text string, x, y float64, font *CustomFont, size float64, color Color, rotation, opacity float64) error {
+	if font == nil {
+		return errors.New("font cannot be nil")
+	}
+	if size <= 0 {
+		return errors.New("font size must be positive")
+	}
+	if color.R < 0 || color.R > 1 || color.G < 0 || color.G > 1 || color.B < 0 || color.B > 1 {
+		return errors.New("color components must be in range [0.0, 1.0]")
+	}
+	if err := validateOpacity(&opacity); err != nil {
+		return err
+	}
+
+	rotation = normalizeAngle(rotation)
+
+	font.UseString(text)
+
+	p.textOps = append(p.textOps, TextOperation{
+		Text:       text,
+		X:          x,
+		Y:          y,
+		CustomFont: font,
+		Size:       size,
+		Color:      color,
+		Rotation:   rotation,
+		Opacity:    &opacity,
+	})
+
+	return nil
+}
+
 // TextOperations returns all text operations for this page.
 //
 // This is used by the writer infrastructure to generate the content stream.
