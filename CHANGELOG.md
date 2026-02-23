@@ -169,11 +169,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## Planned (v0.4.0+)
-- Encrypted PDF reading (AES-128, empty password)
+## Planned (v0.6.0+)
+- Encrypted PDF reading (AES-128, RC4-128, user password)
 - Digital signatures (sign and verify)
 - PDF/A compliance
-- Object streams (30% file size reduction)
 
 ---
 
@@ -280,7 +279,8 @@ Initial public release of GxPDF - a modern, enterprise-grade PDF library for Go.
 
 ---
 
-[Unreleased]: https://github.com/coregx/gxpdf/compare/v0.3.0...HEAD
+[0.5.0]: https://github.com/coregx/gxpdf/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/coregx/gxpdf/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/coregx/gxpdf/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/coregx/gxpdf/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/coregx/gxpdf/compare/v0.1.1...v0.2.0

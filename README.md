@@ -344,18 +344,23 @@ Convenience methods like `ExtractText()`, `ExtractTables()`, and `GetImages()` l
 - [x] Error propagation in public API
 - [x] 11 parser robustness fixes (community contributions by @mikeschinkel)
 
-### v0.4.0 "Creator API" (In Development)
+### v0.4.0 "Creator API" (Released)
 
 - [x] 35+ built-in page sizes (ISO A/B/C, ANSI, photo, book, JIS, envelopes, slides)
 - [x] Custom page dimensions with unit conversions
 - [x] Landscape/Portrait orientation support
 - [x] Text rotation (AddTextRotated, AddTextColorRotated)
 
-### v0.5.0+ (Planned)
+### v0.5.0 "Opacity & Bezier" (Released)
+
+- [x] Shape opacity fix (all shape types)
+- [x] Text opacity (AddTextColorAlpha + custom font variants)
+- [x] Quadratic Bezier curves (DrawQuadBezierCurve)
+
+### v0.6.0+ (Planned)
 - [ ] Encrypted PDF reading
 - [ ] Digital signatures
 - [ ] PDF/A compliance
-- [ ] Object streams (30% compression)
 - [ ] SVG import
 
 ## License
