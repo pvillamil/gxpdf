@@ -2,7 +2,7 @@
 
 Strategic development plan for the GxPDF PDF library.
 
-**Current Version**: v0.4.0 "Creator API"
+**Current Version**: v0.5.0 "Opacity & Bezier"
 
 ## Version History
 
@@ -101,7 +101,7 @@ Page sizes, custom dimensions, landscape orientation, and text rotation:
 
 ### v0.5.0 "Opacity & Bezier"
 
-**Status**: All tasks merged, awaiting release
+**Released**: February 2026
 
 #### Shape Opacity Fix (#47)
 - Fixed 3-layer pipeline gap: opacity now propagated through writer
