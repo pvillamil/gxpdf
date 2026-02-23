@@ -16,7 +16,7 @@
 
 ### PDF Creation (Creator API)
 - **Text & Typography** - Rich text with multiple fonts, styles, and colors
-- **Graphics** - Lines, rectangles, circles, polygons, ellipses, Bezier curves
+- **Graphics** - Lines, rectangles, circles, polygons, ellipses, cubic and quadratic Bezier curves
 - **Gradients** - Linear and radial gradient fills
 - **Color Spaces** - RGB and CMYK support
 - **Tables** - Complex tables with merged cells, borders, backgrounds
@@ -31,6 +31,7 @@
 - **Custom Dimensions** - Arbitrary page sizes with unit conversion helpers (inches, mm, cm)
 - **Landscape/Portrait** - True landscape via `NewPageWithSize(A4, Landscape)` — industry-standard swapped-MediaBox
 - **Text Rotation** - Rotated text at any angle via `Tm` operator (standard 14 + custom TTF fonts)
+- **Opacity/Transparency** - Text and shape opacity via ExtGState (`AddTextColorAlpha`, shape `Opacity` option)
 - **Page Operations** - Merge, split, rotate, append
 
 ### PDF Reading & Extraction

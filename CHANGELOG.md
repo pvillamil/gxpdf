@@ -5,7 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.0] - Unreleased "Creator API"
+## [0.5.0] - Unreleased "Opacity & Bezier"
+
+### Added
+- **Text Opacity** - New `AddTextColorAlpha`, `AddTextColorRotatedAlpha`, `AddTextCustomFontColorAlpha`, `AddTextCustomFontColorRotatedAlpha` methods (#46)
+  - ExtGState transparency via `/ca` and `/CA` keys per ISO 32000 §11.6.4.4
+  - Works with both standard 14 fonts and custom TTF/OTF fonts
+  - Combines with rotation for watermark-style effects
+- **Quadratic Bezier Curves** - `DrawQuadBezierCurve` with `QuadBezierSegment` struct (#45)
+  - Exact degree elevation to cubic Bezier (not approximation)
+  - `QuadBezierSegment.ToCubic()` for manual conversion
+  - Multi-segment paths with full styling (stroke, fill, dash, opacity, gradient)
+
+### Fixed
+- **Shape Opacity** - `Opacity` on shape option structs now works correctly (#47)
+  - Root cause: 3-layer pipeline gap — opacity accepted by creator but dropped during conversion
+  - Fix propagates opacity through `convertOptions` → `writer.GraphicsOp` → ExtGState `gs` operator
+  - Affects all shape types: circles, ellipses, rectangles, polygons, polylines, lines, Bezier curves
+
+---
+
+## [0.4.0] - 2026-02-21 "Creator API"
 
 ### Added
 - **35+ Page Sizes** - Expanded from 8 to 38 built-in page sizes
