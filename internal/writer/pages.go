@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/coregx/gxpdf/internal/document"
+	"github.com/coregx/gxpdf/logging"
 )
 
 // hasTextBlockOps checks if any graphics operations contain TextBlock (type 22).
@@ -264,6 +265,10 @@ func (w *PdfWriter) createPageWithContent(
 			}
 		}
 
+		// Create ExtGState objects for opacity and assign object numbers.
+		gsObjs := w.createExtGStateObjects(resources)
+		fontObjs = append(fontObjs, gsObjs...)
+
 		// Write resources dictionary
 		pageDict.WriteString(" /Resources ")
 		pageDict.Write(resources.Bytes())
@@ -397,12 +402,14 @@ func (w *PdfWriter) createPageWithAllContent(
 		// STEP 3.5: Create image XObjects for image operations and assign object numbers.
 		imageObjs, err := w.createAndAssignImageXObjects(graphicsOps, resources)
 		if err != nil {
-			// Log error but continue - don't fail the whole page
-			// TODO: Add logging when available
-			_ = err
+			logging.Logger().Warn("failed to create image XObjects", "error", err)
 		} else {
 			fontObjs = append(fontObjs, imageObjs...)
 		}
+
+		// STEP 3.6: Create ExtGState objects for opacity and assign object numbers.
+		gsObjs := w.createExtGStateObjects(resources)
+		fontObjs = append(fontObjs, gsObjs...)
 
 		// Write resources dictionary
 		pageDict.WriteString(" /Resources ")
@@ -450,6 +457,48 @@ func (w *PdfWriter) createPageWithAllContent(
 func (w *PdfWriter) createPage(page *document.Page, objNum int, parentRef int) *IndirectObject {
 	pageObj, _, _ := w.createPageWithContent(page, objNum, parentRef, nil)
 	return pageObj
+}
+
+// createExtGStateObjects creates ExtGState PDF indirect objects for all registered graphics states
+// in the resource dictionary and assigns their object numbers.
+//
+// This fills the gap where ExtGState entries were registered during content stream generation
+// (with placeholder object number 0) but never materialized as actual PDF objects.
+//
+// Each ExtGState dictionary has the format:
+//
+//	<< /Type /ExtGState /ca {opacity} /CA {opacity} >>
+//
+// where /ca controls fill opacity and /CA controls stroke opacity.
+//
+// Returns the created IndirectObject slice.
+func (w *PdfWriter) createExtGStateObjects(resources *ResourceDictionary) []*IndirectObject {
+	entries := resources.ExtGStateEntries()
+	if len(entries) == 0 {
+		return nil
+	}
+
+	objects := make([]*IndirectObject, 0, len(entries))
+
+	for gsName, opacity := range entries {
+		objNum := w.allocateObjNum()
+
+		var buf bytes.Buffer
+		buf.WriteString("<< /Type /ExtGState")
+		buf.WriteString(fmt.Sprintf(" /ca %.2f /CA %.2f", opacity, opacity))
+		buf.WriteString(" >>")
+
+		objects = append(objects, NewIndirectObject(objNum, 0, buf.Bytes()))
+		resources.SetExtGStateObjNum(gsName, objNum)
+
+		logging.Logger().Debug("created ExtGState object",
+			"gsName", gsName,
+			"objNum", objNum,
+			"opacity", opacity,
+		)
+	}
+
+	return objects
 }
 
 // createAndAssignImageXObjects creates image XObject dictionary objects for all image operations

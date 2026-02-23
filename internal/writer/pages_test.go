@@ -328,6 +328,86 @@ func TestCreatePage_DifferentSizes(t *testing.T) {
 	}
 }
 
+func TestCreateExtGStateObjects(t *testing.T) {
+	w := &PdfWriter{
+		nextObjNum: 1,
+		objects:    make([]*IndirectObject, 0),
+		offsets:    make(map[int]int64),
+	}
+
+	resources := NewResourceDictionary()
+
+	// Register two ExtGState entries (placeholders with objNum=0).
+	name1, created1 := resources.GetOrCreateExtGState(0.5)
+	if !created1 {
+		t.Fatal("expected first GetOrCreateExtGState to return needsCreation=true")
+	}
+	name2, created2 := resources.GetOrCreateExtGState(0.3)
+	if !created2 {
+		t.Fatal("expected second GetOrCreateExtGState to return needsCreation=true")
+	}
+
+	// Before creating objects, both should have placeholder objNum=0.
+	if resources.GetExtGStateObjNum(name1) != 0 {
+		t.Errorf("expected objNum 0 for %s before creation, got %d", name1, resources.GetExtGStateObjNum(name1))
+	}
+	if resources.GetExtGStateObjNum(name2) != 0 {
+		t.Errorf("expected objNum 0 for %s before creation, got %d", name2, resources.GetExtGStateObjNum(name2))
+	}
+
+	// Create ExtGState objects.
+	objects := w.createExtGStateObjects(resources)
+
+	// Should have created 2 objects.
+	if len(objects) != 2 {
+		t.Fatalf("expected 2 ExtGState objects, got %d", len(objects))
+	}
+
+	// All object numbers must be > 0.
+	for _, obj := range objects {
+		if obj.Number <= 0 {
+			t.Errorf("ExtGState object has invalid number %d", obj.Number)
+		}
+		data := string(obj.Data)
+		if !strings.Contains(data, "/Type /ExtGState") {
+			t.Errorf("ExtGState object missing /Type /ExtGState: %s", data)
+		}
+		if !strings.Contains(data, "/ca ") || !strings.Contains(data, "/CA ") {
+			t.Errorf("ExtGState object missing /ca or /CA: %s", data)
+		}
+	}
+
+	// After creation, resource dictionary should have real object numbers.
+	if resources.GetExtGStateObjNum(name1) == 0 {
+		t.Errorf("expected objNum > 0 for %s after creation", name1)
+	}
+	if resources.GetExtGStateObjNum(name2) == 0 {
+		t.Errorf("expected objNum > 0 for %s after creation", name2)
+	}
+
+	// Resource dictionary bytes should NOT contain "0 0 R" for any GS entry.
+	resStr := resources.String()
+	if strings.Contains(resStr, " 0 0 R") {
+		t.Errorf("resource dictionary still contains '0 0 R' placeholder: %s", resStr)
+	}
+}
+
+func TestCreateExtGStateObjects_Empty(t *testing.T) {
+	w := &PdfWriter{
+		nextObjNum: 1,
+		objects:    make([]*IndirectObject, 0),
+		offsets:    make(map[int]int64),
+	}
+
+	resources := NewResourceDictionary()
+
+	// No ExtGState entries — should return nil.
+	objects := w.createExtGStateObjects(resources)
+	if objects != nil {
+		t.Errorf("expected nil for empty ExtGState, got %d objects", len(objects))
+	}
+}
+
 func TestCreatePageTree_EmptyDocument(t *testing.T) {
 	w := &PdfWriter{
 		nextObjNum: 1,

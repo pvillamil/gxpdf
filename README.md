@@ -300,68 +300,7 @@ Convenience methods like `ExtractText()`, `ExtractTables()`, and `GetImages()` l
 
 ## Roadmap
 
-### v0.1.x (Stable)
-- [x] PDF reading and parsing (PDF 1.0-2.0)
-- [x] Text extraction with positions
-- [x] Table extraction (100% accuracy)
-- [x] CSV/JSON/Excel export
-- [x] Creator API (text, graphics, tables)
-- [x] JPEG/PNG image support
-- [x] TTF/OTF font embedding with full Unicode
-- [x] RC4/AES encryption
-- [x] Chapters and TOC
-- [x] Annotations
-- [x] Interactive forms (AcroForm)
-- [x] Watermarks
-- [x] Page operations (merge, split, rotate)
-
-### v0.2.0 "Graphics Revolution" (Released)
-
-**Skia-like Graphics API** for [GoGPU/gg](https://github.com/gogpu/gg) integration:
-
-- [x] Alpha channel / transparency (ExtGState)
-- [x] Push/Pop graphics state stack
-- [x] Fill/Stroke separation with Paint interface
-- [x] Path Builder API (MoveTo, LineTo, CubicTo, etc.)
-- [x] Linear and Radial gradients
-- [x] ClipPath support
-
-**Forms API** (Read, Fill, Flatten):
-
-- [x] Form field reader (GetFormFields, GetFieldValue)
-- [x] Form field writer (SetFieldValue with validation)
-- [x] Form flattening (FlattenForm, FlattenFields)
-
-**WASM/Platform Support**:
-
-- [x] WASM API (WriteTo, Bytes for in-memory generation)
-
-### v0.3.0 "Parser Hardening" (Released)
-
-- [x] slog-based configurable logging
-- [x] Image XObject rendering (JPEG + PNG + alpha)
-- [x] Watermark rendering with rotation and opacity
-- [x] Error propagation in public API
-- [x] 11 parser robustness fixes (community contributions by @mikeschinkel)
-
-### v0.4.0 "Creator API" (Released)
-
-- [x] 35+ built-in page sizes (ISO A/B/C, ANSI, photo, book, JIS, envelopes, slides)
-- [x] Custom page dimensions with unit conversions
-- [x] Landscape/Portrait orientation support
-- [x] Text rotation (AddTextRotated, AddTextColorRotated)
-
-### v0.5.0 "Opacity & Bezier" (Released)
-
-- [x] Shape opacity fix (all shape types)
-- [x] Text opacity (AddTextColorAlpha + custom font variants)
-- [x] Quadratic Bezier curves (DrawQuadBezierCurve)
-
-### v0.6.0+ (Planned)
-- [ ] Encrypted PDF reading
-- [ ] Digital signatures
-- [ ] PDF/A compliance
-- [ ] SVG import
+See [ROADMAP.md](ROADMAP.md) for the full development plan and version history.
 
 ## License
 

@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2026-02-23
+
+### Fixed
+- **ExtGState Object Creation** - Shape and text opacity now produce valid PDF output (#46, #47)
+  - Root cause: ExtGState entries were registered in resource dictionary with placeholder object number `0`, but actual PDF indirect objects were never created — `/GS1 0 0 R` pointed to xref free entry
+  - Fix adds STEP 3.6 in writer pipeline: `createExtGStateObjects()` materializes `<< /Type /ExtGState /ca {opacity} /CA {opacity} >>` dictionaries with real object numbers
+  - Both page creation paths fixed: text-only (`createPageWithContent`) and graphics+text (`createPageWithAllContent`)
+  - Added slog debug logging for ExtGState object creation
+
+---
+
 ## [0.5.0] - 2026-02-23 "Opacity & Bezier"
 
 ### Added
@@ -279,6 +290,7 @@ Initial public release of GxPDF - a modern, enterprise-grade PDF library for Go.
 
 ---
 
+[0.5.1]: https://github.com/coregx/gxpdf/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/coregx/gxpdf/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/coregx/gxpdf/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/coregx/gxpdf/compare/v0.2.1...v0.3.0
