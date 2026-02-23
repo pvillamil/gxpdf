@@ -93,5 +93,10 @@ func validatePolylineOptions(opts *PolylineOptions) error {
 		return errors.New("line width must be non-negative")
 	}
 
+	// Validate opacity if provided.
+	if err := validateOpacity(opts.Opacity); err != nil {
+		return err
+	}
+
 	return nil
 }

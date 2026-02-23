@@ -1018,6 +1018,9 @@ func convertGraphicsOptions(gop *writer.GraphicsOp, op *GraphicsOperation) {
 		gop.Dashed = op.LineOpts.Dashed
 		gop.DashArray = op.LineOpts.DashArray
 		gop.DashPhase = op.LineOpts.DashPhase
+		if op.LineOpts.Opacity != nil {
+			gop.Opacity = *op.LineOpts.Opacity
+		}
 	}
 
 	// Rectangle options
@@ -1072,6 +1075,9 @@ func convertRectOptions(gop *writer.GraphicsOp, opts *RectOptions) {
 	gop.Dashed = opts.Dashed
 	gop.DashArray = opts.DashArray
 	gop.DashPhase = opts.DashPhase
+	if opts.Opacity != nil {
+		gop.Opacity = *opts.Opacity
+	}
 }
 
 // convertCircleOptions converts circle options.
@@ -1092,6 +1098,9 @@ func convertCircleOptions(gop *writer.GraphicsOp, opts *CircleOptions) {
 		gop.FillGradient = convertGradient(opts.FillGradient)
 	}
 	gop.StrokeWidth = opts.StrokeWidth
+	if opts.Opacity != nil {
+		gop.Opacity = *opts.Opacity
+	}
 }
 
 // convertGradient converts a creator gradient to writer gradient.
@@ -1146,6 +1155,9 @@ func convertPolygonOptions(gop *writer.GraphicsOp, opts *PolygonOptions) {
 	gop.Dashed = opts.Dashed
 	gop.DashArray = opts.DashArray
 	gop.DashPhase = opts.DashPhase
+	if opts.Opacity != nil {
+		gop.Opacity = *opts.Opacity
+	}
 }
 
 // convertPolylineOptions converts polyline options.
@@ -1158,6 +1170,9 @@ func convertPolylineOptions(gop *writer.GraphicsOp, opts *PolylineOptions) {
 	gop.Dashed = opts.Dashed
 	gop.DashArray = opts.DashArray
 	gop.DashPhase = opts.DashPhase
+	if opts.Opacity != nil {
+		gop.Opacity = *opts.Opacity
+	}
 }
 
 // convertEllipseOptions converts ellipse options.
@@ -1178,6 +1193,9 @@ func convertEllipseOptions(gop *writer.GraphicsOp, opts *EllipseOptions) {
 		gop.FillGradient = convertGradient(opts.FillGradient)
 	}
 	gop.StrokeWidth = opts.StrokeWidth
+	if opts.Opacity != nil {
+		gop.Opacity = *opts.Opacity
+	}
 }
 
 // convertBezierOptions converts bezier options.
@@ -1196,6 +1214,9 @@ func convertBezierOptions(gop *writer.GraphicsOp, opts *BezierOptions) {
 	}
 	if opts.FillGradient != nil {
 		gop.FillGradient = convertGradient(opts.FillGradient)
+	}
+	if opts.Opacity != nil {
+		gop.Opacity = *opts.Opacity
 	}
 }
 

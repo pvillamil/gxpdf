@@ -148,6 +148,11 @@ type GraphicsOp struct {
 	DashArray       []float64
 	DashPhase       float64
 
+	// Opacity is the shape opacity (0.0 = fully transparent, 1.0 = fully opaque).
+	// Zero value means not set (treated as fully opaque, no ExtGState emitted).
+	// Values in (0, 1) exclusive cause an ExtGState resource to be created.
+	Opacity float64
+
 	// Clipping
 	IsClipPath bool // If true, this shape defines a clipping path (not drawn)
 
@@ -319,6 +324,19 @@ func GenerateContentStreamWithGraphics(textOps []TextOp, graphicsOps []GraphicsO
 	return csw.Bytes(), resources, nil
 }
 
+// applyOpacity emits a gs (SetGraphicsState) operator when opacity is a
+// fractional value strictly between 0 and 1. Fully-opaque shapes (opacity == 0
+// meaning "not set", or opacity == 1.0) do not need an ExtGState entry.
+//
+// The caller must have already called csw.SaveState() so the opacity is
+// scoped to the current shape and restored by the matching RestoreState.
+func applyOpacity(csw *ContentStreamWriter, opacity float64, resources *ResourceDictionary) {
+	if opacity > 0 && opacity < 1.0 {
+		gsName, _ := resources.GetOrCreateExtGState(opacity)
+		csw.SetGraphicsState(gsName)
+	}
+}
+
 // renderGraphicsOp renders a single graphics operation to the content stream.
 func renderGraphicsOp(csw *ContentStreamWriter, gop GraphicsOp, resources *ResourceDictionary) error {
 	// Clipping and text operations manage their own state - don't wrap them.
@@ -338,23 +356,23 @@ func renderGraphicsOp(csw *ContentStreamWriter, gop GraphicsOp, resources *Resou
 
 	switch gop.Type {
 	case 0: // Line
-		return renderLine(csw, gop)
+		return renderLine(csw, gop, resources)
 	case 1: // Rectangle
-		return renderRect(csw, gop)
+		return renderRect(csw, gop, resources)
 	case 2: // Circle
-		return renderCircle(csw, gop)
+		return renderCircle(csw, gop, resources)
 	case 3: // Image
 		return renderImage(csw, gop, resources)
 	case 4: // Watermark
 		return renderWatermark(csw, gop, resources)
 	case 5: // Polygon
-		return renderPolygon(csw, gop)
+		return renderPolygon(csw, gop, resources)
 	case 6: // Polyline
-		return renderPolyline(csw, gop)
+		return renderPolyline(csw, gop, resources)
 	case 7: // Ellipse
-		return renderEllipse(csw, gop)
+		return renderEllipse(csw, gop, resources)
 	case 8: // Bezier
-		return renderBezier(csw, gop)
+		return renderBezier(csw, gop, resources)
 	default:
 		return fmt.Errorf("unknown graphics operation type: %d", gop.Type)
 	}
@@ -379,7 +397,10 @@ func setFillColor(csw *ContentStreamWriter, rgb *RGB, cmyk *CMYK) {
 }
 
 // renderLine renders a line to the content stream.
-func renderLine(csw *ContentStreamWriter, gop GraphicsOp) error {
+func renderLine(csw *ContentStreamWriter, gop GraphicsOp, resources *ResourceDictionary) error {
+	// Apply opacity before other state changes so it scopes the entire shape.
+	applyOpacity(csw, gop.Opacity, resources)
+
 	// Set line width
 	if gop.StrokeWidth > 0 {
 		csw.SetLineWidth(gop.StrokeWidth)
@@ -406,7 +427,10 @@ func renderLine(csw *ContentStreamWriter, gop GraphicsOp) error {
 }
 
 // renderRect renders a rectangle to the content stream.
-func renderRect(csw *ContentStreamWriter, gop GraphicsOp) error {
+func renderRect(csw *ContentStreamWriter, gop GraphicsOp, resources *ResourceDictionary) error {
+	// Apply opacity before other state changes so it scopes the entire shape.
+	applyOpacity(csw, gop.Opacity, resources)
+
 	// Set line width
 	if gop.StrokeWidth > 0 {
 		csw.SetLineWidth(gop.StrokeWidth)
@@ -525,7 +549,10 @@ func renderTextBlock(csw *ContentStreamWriter, gop GraphicsOp, resources *Resour
 }
 
 // renderCircle renders a circle to the content stream using Bézier curves.
-func renderCircle(csw *ContentStreamWriter, gop GraphicsOp) error {
+func renderCircle(csw *ContentStreamWriter, gop GraphicsOp, resources *ResourceDictionary) error {
+	// Apply opacity before other state changes so it scopes the entire shape.
+	applyOpacity(csw, gop.Opacity, resources)
+
 	// Set line width
 	if gop.StrokeWidth > 0 {
 		csw.SetLineWidth(gop.StrokeWidth)
@@ -585,10 +612,13 @@ func renderCircle(csw *ContentStreamWriter, gop GraphicsOp) error {
 }
 
 // renderPolygon renders a polygon to the content stream.
-func renderPolygon(csw *ContentStreamWriter, gop GraphicsOp) error {
+func renderPolygon(csw *ContentStreamWriter, gop GraphicsOp, resources *ResourceDictionary) error {
 	if len(gop.Vertices) < 3 {
 		return fmt.Errorf("polygon must have at least 3 vertices")
 	}
+
+	// Apply opacity before other state changes so it scopes the entire shape.
+	applyOpacity(csw, gop.Opacity, resources)
 
 	// Set line width
 	if gop.StrokeWidth > 0 {
@@ -642,10 +672,13 @@ func renderPolygon(csw *ContentStreamWriter, gop GraphicsOp) error {
 }
 
 // renderPolyline renders a polyline to the content stream.
-func renderPolyline(csw *ContentStreamWriter, gop GraphicsOp) error {
+func renderPolyline(csw *ContentStreamWriter, gop GraphicsOp, resources *ResourceDictionary) error {
 	if len(gop.Vertices) < 2 {
 		return fmt.Errorf("polyline must have at least 2 vertices")
 	}
+
+	// Apply opacity before other state changes so it scopes the entire shape.
+	applyOpacity(csw, gop.Opacity, resources)
 
 	// Set line width
 	if gop.StrokeWidth > 0 {
@@ -680,7 +713,10 @@ func renderPolyline(csw *ContentStreamWriter, gop GraphicsOp) error {
 }
 
 // renderEllipse renders an ellipse to the content stream using Bézier curves.
-func renderEllipse(csw *ContentStreamWriter, gop GraphicsOp) error {
+func renderEllipse(csw *ContentStreamWriter, gop GraphicsOp, resources *ResourceDictionary) error {
+	// Apply opacity before other state changes so it scopes the entire shape.
+	applyOpacity(csw, gop.Opacity, resources)
+
 	// Set line width
 	if gop.StrokeWidth > 0 {
 		csw.SetLineWidth(gop.StrokeWidth)
@@ -763,10 +799,13 @@ func renderGradientFill(csw *ContentStreamWriter, grad *GradientOp) {
 }
 
 // renderBezier renders a Bézier curve to the content stream.
-func renderBezier(csw *ContentStreamWriter, gop GraphicsOp) error {
+func renderBezier(csw *ContentStreamWriter, gop GraphicsOp, resources *ResourceDictionary) error {
 	if len(gop.BezierSegs) == 0 {
 		return fmt.Errorf("bezier curve must have at least 1 segment")
 	}
+
+	// Apply opacity before other state changes so it scopes the entire shape.
+	applyOpacity(csw, gop.Opacity, resources)
 
 	// Set line width
 	if gop.StrokeWidth > 0 {

@@ -144,5 +144,10 @@ func validatePolygonOptions(opts *PolygonOptions) error {
 		}
 	}
 
+	// Validate opacity if provided.
+	if err := validateOpacity(opts.Opacity); err != nil {
+		return err
+	}
+
 	return nil
 }
