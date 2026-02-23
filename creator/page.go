@@ -475,6 +475,11 @@ func (p *Page) DrawLine(x1, y1, x2, y2 float64, opts *LineOptions) error {
 		return errors.New("line width must be non-negative")
 	}
 
+	// Validate opacity if provided.
+	if err := validateOpacity(opts.Opacity); err != nil {
+		return err
+	}
+
 	// Store graphics operation.
 	p.graphicsOps = append(p.graphicsOps, GraphicsOperation{
 		Type:     GraphicsOpLine,
@@ -712,6 +717,19 @@ func validateColor(c Color) error {
 	return nil
 }
 
+// validateOpacity validates that the optional opacity pointer is in range [0.0, 1.0].
+//
+// A nil pointer is treated as "not set" (fully opaque) and passes validation.
+func validateOpacity(opacity *float64) error {
+	if opacity == nil {
+		return nil
+	}
+	if *opacity < 0 || *opacity > 1 {
+		return errors.New("opacity must be in range [0.0, 1.0]")
+	}
+	return nil
+}
+
 // validateRectOptions validates rectangle drawing options.
 func validateRectOptions(opts *RectOptions) error {
 	// Validate stroke color if provided.
@@ -748,6 +766,11 @@ func validateRectOptions(opts *RectOptions) error {
 		if err := opts.FillGradient.Validate(); err != nil {
 			return errors.New("fill gradient: " + err.Error())
 		}
+	}
+
+	// Validate opacity if provided.
+	if err := validateOpacity(opts.Opacity); err != nil {
+		return err
 	}
 
 	return nil
@@ -789,6 +812,11 @@ func validateCircleOptions(opts *CircleOptions) error {
 		if err := opts.FillGradient.Validate(); err != nil {
 			return errors.New("fill gradient: " + err.Error())
 		}
+	}
+
+	// Validate opacity if provided.
+	if err := validateOpacity(opts.Opacity); err != nil {
+		return err
 	}
 
 	return nil
