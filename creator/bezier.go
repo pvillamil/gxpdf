@@ -148,6 +148,162 @@ func (p *Page) DrawBezierCurve(segments []BezierSegment, opts *BezierOptions) er
 	return nil
 }
 
+// QuadBezierSegment represents a quadratic Bézier curve segment.
+//
+// A quadratic Bézier curve is defined by three points:
+//   - Start point (P0): the curve's starting anchor
+//   - Control point (P1): the single control point that shapes the curve
+//   - End point (P2): the curve's ending anchor
+//
+// Quadratic Bézier curves are the native curve primitive of TrueType font
+// outlines and the SVG "Q" command. They offer one fewer degree of freedom
+// than cubic Bézier curves and are therefore simpler to parameterize.
+//
+// Because the PDF specification (ISO 32000) only supports cubic Bézier curves
+// (the "c" operator), GxPDF converts each quadratic segment to an equivalent
+// cubic segment using exact degree elevation via [QuadBezierSegment.ToCubic].
+// The conversion is mathematically exact — it is not an approximation.
+type QuadBezierSegment struct {
+	// Start is the starting anchor point (P0).
+	// For the first segment this is the curve's entry point.
+	// For subsequent segments this should match the previous segment's End point.
+	Start Point
+
+	// Control is the single quadratic control point (P1).
+	// The curve does not pass through this point; it is attracted toward it.
+	Control Point
+
+	// End is the ending anchor point (P2).
+	End Point
+}
+
+// ToCubic converts the quadratic Bézier segment to an equivalent cubic
+// Bézier segment using degree elevation.
+//
+// The conversion formula (exact, not an approximation) is:
+//
+//	Q0 = P0
+//	Q1 = P0 + (2/3) * (P1 - P0)
+//	Q2 = P2 + (2/3) * (P1 - P2)
+//	Q3 = P2
+//
+// where P0, P1, P2 are the quadratic start, control, and end points
+// and Q0..Q3 are the resulting cubic start, first control, second control,
+// and end points.
+//
+// This identity is derived from the de Casteljau algorithm: a degree-n
+// polynomial can always be expressed exactly as a degree-(n+1) polynomial
+// by splitting its control polygon in the ratio 2:1 from each endpoint.
+//
+// Reference: Farin, "Curves and Surfaces for CAGD", §5.2 — Degree Elevation.
+func (q QuadBezierSegment) ToCubic() BezierSegment {
+	// Q1 = P0 + (2/3)(P1 - P0)
+	c1 := Point{
+		X: q.Start.X + (2.0/3.0)*(q.Control.X-q.Start.X),
+		Y: q.Start.Y + (2.0/3.0)*(q.Control.Y-q.Start.Y),
+	}
+	// Q2 = P2 + (2/3)(P1 - P2)
+	c2 := Point{
+		X: q.End.X + (2.0/3.0)*(q.Control.X-q.End.X),
+		Y: q.End.Y + (2.0/3.0)*(q.Control.Y-q.End.Y),
+	}
+	return BezierSegment{
+		Start: q.Start,
+		C1:    c1,
+		C2:    c2,
+		End:   q.End,
+	}
+}
+
+// DrawQuadBezierCurve draws a curve composed of one or more quadratic Bézier
+// segments.
+//
+// Quadratic Bézier curves are defined by a single control point per segment
+// (compared to two control points for cubic Bézier curves). They are the
+// curve primitive used in TrueType font outlines and the SVG "Q" command.
+//
+// Because the PDF specification (ISO 32000, section 8.5.2) only supports
+// cubic Bézier curves via the "c" content-stream operator, each quadratic
+// segment is converted to an exact cubic equivalent using degree elevation
+// before writing to the PDF. The conversion is lossless — the rendered curve
+// is identical to the original quadratic specification.
+//
+// Multiple segments are connected end-to-end to form a compound path. Each
+// segment's Start point must match the previous segment's End point (within a
+// floating-point epsilon of 0.001). This mirrors the continuity requirement of
+// [DrawBezierCurve].
+//
+// All [BezierOptions] apply equally to quadratic and cubic curves: stroke
+// color, width, dash patterns, closed paths, fill colors, and opacity.
+//
+// Parameters:
+//   - segments: One or more quadratic Bézier segments (minimum 1).
+//   - opts: Curve drawing options (must not be nil).
+//
+// Example (simple quadratic arc):
+//
+//	opts := &creator.BezierOptions{
+//	    Color: creator.Blue,
+//	    Width: 2.0,
+//	}
+//	segments := []creator.QuadBezierSegment{
+//	    {
+//	        Start:   creator.Point{X: 100, Y: 100},
+//	        Control: creator.Point{X: 175, Y: 200},
+//	        End:     creator.Point{X: 250, Y: 100},
+//	    },
+//	}
+//	err := page.DrawQuadBezierCurve(segments, opts)
+//
+// Example (multi-segment wave):
+//
+//	segments := []creator.QuadBezierSegment{
+//	    {Start: creator.Point{X: 50, Y: 100}, Control: creator.Point{X: 100, Y: 150}, End: creator.Point{X: 150, Y: 100}},
+//	    {Start: creator.Point{X: 150, Y: 100}, Control: creator.Point{X: 200, Y: 50}, End: creator.Point{X: 250, Y: 100}},
+//	}
+//	err := page.DrawQuadBezierCurve(segments, opts)
+func (p *Page) DrawQuadBezierCurve(segments []QuadBezierSegment, opts *BezierOptions) error {
+	if opts == nil {
+		return errors.New("bezier curve options cannot be nil")
+	}
+
+	// Validate segments
+	if len(segments) == 0 {
+		return errors.New("bezier curve must have at least 1 segment")
+	}
+
+	// Validate segment continuity (each segment's start should match previous segment's end)
+	for i := 1; i < len(segments); i++ {
+		prev := segments[i-1].End
+		curr := segments[i].Start
+		const epsilon = 0.001
+		if abs(prev.X-curr.X) > epsilon || abs(prev.Y-curr.Y) > epsilon {
+			return errors.New("bezier segments must be continuous (segment start point must match previous segment end point)")
+		}
+	}
+
+	// Validate options
+	if err := validateBezierOptions(opts); err != nil {
+		return err
+	}
+
+	// Convert all quadratic segments to cubic using degree elevation.
+	// This is exact (lossless) — no approximation is involved.
+	cubicSegs := make([]BezierSegment, len(segments))
+	for i, q := range segments {
+		cubicSegs[i] = q.ToCubic()
+	}
+
+	// Reuse the existing cubic Bézier pipeline entirely.
+	p.graphicsOps = append(p.graphicsOps, GraphicsOperation{
+		Type:       GraphicsOpBezier,
+		BezierSegs: cubicSegs,
+		BezierOpts: opts,
+	})
+
+	return nil
+}
+
 // validateBezierOptions validates Bézier curve drawing options.
 func validateBezierOptions(opts *BezierOptions) error {
 	// Validate color components
