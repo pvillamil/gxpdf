@@ -36,6 +36,18 @@ func NewPdfReader(path string) (*PdfReader, error) {
 	return &PdfReader{reader: r}, nil
 }
 
+// NewPdfReaderWithPassword creates a new PDF reader from a password-protected file.
+//
+// Use this for encrypted PDFs that require a non-empty password.
+// For PDFs with empty user password, NewPdfReader handles them transparently.
+func NewPdfReaderWithPassword(path, password string) (*PdfReader, error) {
+	r, err := parser.OpenPDFWithPassword(path, password)
+	if err != nil {
+		return nil, err
+	}
+	return &PdfReader{reader: r}, nil
+}
+
 // Close closes the PDF file and releases resources.
 func (r *PdfReader) Close() error {
 	return r.reader.Close()

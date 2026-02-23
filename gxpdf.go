@@ -46,10 +46,15 @@ import (
 	"fmt"
 
 	"github.com/coregx/gxpdf/internal/parser"
+	"github.com/coregx/gxpdf/internal/security"
 )
 
 // Version is the current version of the gxpdf library.
 const Version = "0.1.0-alpha"
+
+// ErrPasswordRequired is returned when a password is needed to open an encrypted PDF.
+// Use OpenWithPassword to provide a password.
+var ErrPasswordRequired = security.ErrPasswordRequired
 
 // Open opens a PDF file and returns a Document for reading.
 //
@@ -106,4 +111,42 @@ func MustOpen(path string) *Document {
 		panic(err)
 	}
 	return doc
+}
+
+// OpenWithPassword opens a password-protected PDF file.
+//
+// Use this for encrypted PDFs that require a non-empty password.
+// For PDFs with empty user password (permissions-only encryption),
+// Open() handles them transparently.
+//
+// Example:
+//
+//	doc, err := gxpdf.OpenWithPassword("encrypted.pdf", "secret")
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	defer doc.Close()
+func OpenWithPassword(path, password string) (*Document, error) {
+	return OpenWithPasswordAndContext(context.Background(), path, password)
+}
+
+// OpenWithPasswordAndContext opens a password-protected PDF with a custom context.
+//
+// Example:
+//
+//	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+//	defer cancel()
+//
+//	doc, err := gxpdf.OpenWithPasswordAndContext(ctx, "encrypted.pdf", "secret")
+func OpenWithPasswordAndContext(ctx context.Context, path, password string) (*Document, error) {
+	reader, err := parser.OpenPDFWithPassword(path, password)
+	if err != nil {
+		return nil, fmt.Errorf("gxpdf: failed to open %s: %w", path, err)
+	}
+
+	return &Document{
+		reader: reader,
+		ctx:    ctx,
+		path:   path,
+	}, nil
 }
