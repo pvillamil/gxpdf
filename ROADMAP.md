@@ -115,16 +115,19 @@ Page sizes, custom dimensions, landscape orientation, and text rotation:
 - `AddTextColorAlpha`, `AddTextColorRotatedAlpha` + custom font variants
 - ExtGState transparency via `/ca` and `/CA` keys
 
-## Planned Features
+## Current Development
 
 ### v0.6.0 - Encryption Reading & Digital Signatures
 
-**Priority**: P2
+**Status**: In progress
 
-#### Encrypted PDF Reading
-- **Standard Security Handler** - V4/R4 AES-128 with empty password
-- **Key Derivation** - MD5/SHA-256 per PDF spec revision
-- **Stream/String Decryption** - AES-CBC before decompression
+#### Encrypted PDF Reading (Done)
+- **Standard Security Handler** - RC4-40 (V=1/R=2), RC4-128 (V=2/R=3), AES-128 (V=4/R=4/AESV2)
+- **Password support** - `OpenWithPassword()` for non-empty passwords, `Open()` handles empty passwords transparently
+- **Key Derivation** - Algorithm 2 (MD5-based document key), Algorithm 1 (per-object keys)
+- **Password Verification** - Algorithm 6 (R=2 full compare, R=3/4 first 16 bytes)
+- **Stream/String Decryption** - Per-object RC4 or AES-CBC before decompression
+- **`ErrPasswordRequired`** - Sentinel error for wrong/missing password
 
 #### Digital Signatures
 - **Sign PDFs** - Apply digital signatures with PKCS#12 certificates
@@ -198,7 +201,7 @@ Page sizes, custom dimensions, landscape orientation, and text rotation:
 | Shape Opacity | Done | v0.5.0 |
 | Quadratic Bezier Curves | Done | v0.5.0 |
 | Text Opacity | Done | v0.5.0 |
-| Encrypted PDF Reading | Planned | v0.6.0 |
+| Encrypted PDF Reading | Done | v0.6.0 |
 | Digital Signatures | Planned | v0.6.0 |
 | Fluent Text API | Planned | v0.6.0 |
 | PDF/A Compliance | Planned | v0.7.0 |
@@ -214,7 +217,7 @@ Page sizes, custom dimensions, landscape orientation, and text rotation:
 | fix-006 | Shape Opacity | **P1** | **Done** | Pipeline gap fix (#47) |
 | feat-074 | Quadratic Bezier | **P2** | **Done** | Degree elevation to cubic (#45) |
 | feat-075 | Text Opacity | **P2** | **Done** | ExtGState transparency (#46) |
-| feat-042 | Encrypted PDF Reading | **P2** | Backlog | AES-128 with empty password |
+| feat-042 | Encrypted PDF Reading | **P1** | **Done** | RC4/AES-128 with password support |
 | feat-037 | Digital Signatures | **P2** | Backlog | Sign and verify PDFs |
 | feat-062 | Fluent Text API | P3 | Backlog | Chainable text methods |
 | feat-063 | Paragraph | P3 | Backlog | Multi-line text container |

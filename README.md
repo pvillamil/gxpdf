@@ -35,6 +35,7 @@
 - **Page Operations** - Merge, split, rotate, append
 
 ### PDF Reading & Extraction
+- **Encrypted PDF Reading** - Open password-protected PDFs (RC4-40/128, AES-128)
 - **Table Extraction** - Industry-leading accuracy (100% on bank statements)
 - **Text Extraction** - Full text with positions and Unicode support
 - **Image Extraction** - Extract embedded images
@@ -242,6 +243,23 @@ for _, table := range tables {
     csv, _ := table.ToCSV()
     fmt.Println(csv)
 }
+```
+
+### Reading Encrypted PDFs
+
+```go
+// PDFs with empty user password (permissions-only) open transparently
+doc, _ := gxpdf.Open("bank_statement_encrypted.pdf")
+defer doc.Close()
+
+// PDFs requiring a password
+doc, err := gxpdf.OpenWithPassword("protected.pdf", "secret")
+if errors.Is(err, gxpdf.ErrPasswordRequired) {
+    log.Fatal("Wrong password")
+}
+defer doc.Close()
+
+fmt.Printf("Pages: %d\n", doc.PageCount())
 ```
 
 ## Package Structure
