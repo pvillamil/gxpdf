@@ -2,7 +2,7 @@
 
 Strategic development plan for the GxPDF PDF library.
 
-**Current Version**: v0.5.0 "Opacity & Bezier"
+**Current Version**: See [CHANGELOG.md](CHANGELOG.md)
 
 ## Version History
 

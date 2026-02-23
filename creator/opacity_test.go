@@ -180,6 +180,16 @@ func TestOpacity_WritesValidPDF(t *testing.T) {
 	if !strings.Contains(pdfStr, "/ExtGState") {
 		t.Error("PDF does not contain /ExtGState — opacity was not applied")
 	}
+
+	// Verify ExtGState references real objects (not placeholder 0 0 R).
+	if strings.Contains(pdfStr, "/GS1 0 0 R") {
+		t.Error("ExtGState /GS1 references object 0 — object was never created")
+	}
+
+	// Verify actual ExtGState dictionary exists in PDF.
+	if !strings.Contains(pdfStr, "/ca ") {
+		t.Error("PDF does not contain ExtGState dictionary with /ca opacity key")
+	}
 }
 
 // TestOpacity_ExtGStateSharing verifies that two shapes with the same opacity
@@ -734,6 +744,13 @@ func TestTextOpacity_ContentStream(t *testing.T) {
 	if !strings.Contains(resStr, "/ExtGState") {
 		t.Errorf("expected /ExtGState in resources, got: %s", resStr)
 	}
+
+	// Before object creation, ExtGState should have placeholder object number 0.
+	// This is expected — the writer layer creates the real objects later.
+	// Verify the entry exists in the resource dictionary.
+	if !strings.Contains(resStr, "/GS1") {
+		t.Errorf("expected /GS1 in resources, got: %s", resStr)
+	}
 }
 
 // TestTextOpacity_FullOpaque verifies that opacity 1.0 does NOT emit ExtGState.
@@ -844,5 +861,93 @@ func TestAddTextCustomFontColorRotatedAlpha(t *testing.T) {
 	err = page.AddTextCustomFontColorRotatedAlpha("test", 100, 700, nil, 12, Black, 45, 1.5)
 	if err == nil {
 		t.Error("expected error for nil font, got nil")
+	}
+}
+
+// -------------------------------------------------------------------------
+// TestOpacity_ExtGStateObjectCreated — end-to-end: verify that ExtGState
+// objects are actually created as PDF indirect objects with correct content.
+// -------------------------------------------------------------------------
+
+// TestOpacity_ExtGStateObjectCreated creates a document with a semi-transparent
+// circle and verifies that the resulting PDF contains:
+// 1. /GS1 references a real object (not 0 0 R)
+// 2. An ExtGState dictionary with /ca and /CA keys exists
+// 3. The opacity value is correct
+func TestOpacity_ExtGStateObjectCreated(t *testing.T) {
+	c := New()
+	page, err := c.NewPage()
+	if err != nil {
+		t.Fatalf("NewPage() error = %v", err)
+	}
+
+	opacity := 0.5
+	if err := page.DrawCircle(300, 400, 50, &CircleOptions{
+		FillColor: &Blue,
+		Opacity:   &opacity,
+	}); err != nil {
+		t.Fatalf("DrawCircle() error = %v", err)
+	}
+
+	var buf bytes.Buffer
+	if _, err := c.WriteTo(&buf); err != nil {
+		t.Fatalf("WriteTo() error = %v", err)
+	}
+
+	pdfStr := string(buf.Bytes())
+
+	// /GS1 must NOT reference object 0.
+	if strings.Contains(pdfStr, "/GS1 0 0 R") {
+		t.Error("ExtGState /GS1 references object 0 — ExtGState object was never created")
+	}
+
+	// The actual ExtGState dictionary must exist somewhere in the PDF.
+	if !strings.Contains(pdfStr, "/Type /ExtGState") {
+		t.Error("PDF does not contain /Type /ExtGState dictionary")
+	}
+
+	// Must contain both /ca and /CA opacity keys.
+	if !strings.Contains(pdfStr, "/ca 0.50") {
+		t.Errorf("PDF does not contain /ca 0.50 for fill opacity")
+	}
+	if !strings.Contains(pdfStr, "/CA 0.50") {
+		t.Errorf("PDF does not contain /CA 0.50 for stroke opacity")
+	}
+}
+
+// TestTextOpacity_ExtGStateObjectCreated verifies end-to-end that text with
+// opacity produces a real ExtGState object in the final PDF.
+func TestTextOpacity_ExtGStateObjectCreated(t *testing.T) {
+	c := New()
+	page, err := c.NewPage()
+	if err != nil {
+		t.Fatalf("NewPage() error = %v", err)
+	}
+
+	err = page.AddTextColorAlpha("Translucent", 100, 700, Helvetica, 14, Red, 0.3)
+	if err != nil {
+		t.Fatalf("AddTextColorAlpha() error = %v", err)
+	}
+
+	var buf bytes.Buffer
+	if _, err := c.WriteTo(&buf); err != nil {
+		t.Fatalf("WriteTo() error = %v", err)
+	}
+
+	pdfStr := string(buf.Bytes())
+
+	// /GS1 must NOT reference object 0.
+	if strings.Contains(pdfStr, "/GS1 0 0 R") {
+		t.Error("ExtGState /GS1 references object 0 — ExtGState object was never created")
+	}
+
+	// The actual ExtGState dictionary must exist.
+	if !strings.Contains(pdfStr, "/Type /ExtGState") {
+		t.Error("PDF does not contain /Type /ExtGState dictionary")
+	}
+
+	// Must contain the correct opacity value.
+	if !strings.Contains(pdfStr, "/ca 0.30") {
+		t.Errorf("PDF does not contain /ca 0.30 for fill opacity")
 	}
 }

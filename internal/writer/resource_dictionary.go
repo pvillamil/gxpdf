@@ -257,6 +257,21 @@ func (rd *ResourceDictionary) GetExtGStateObjNum(name string) int {
 	return rd.extgstates[name]
 }
 
+// ExtGStateEntries returns a map of ExtGState resource name to opacity value.
+//
+// This is used by the writer to create actual ExtGState PDF objects for each
+// registered graphics state. The map is inverted from the internal cache
+// (opacity → name) to (name → opacity) for convenient iteration.
+//
+// Returns an empty map if no ExtGState entries are registered.
+func (rd *ResourceDictionary) ExtGStateEntries() map[string]float64 {
+	result := make(map[string]float64, len(rd.extgstateCache))
+	for opacity, name := range rd.extgstateCache {
+		result[name] = opacity
+	}
+	return result
+}
+
 // HasResources returns true if any resources are registered.
 //
 // Use this to check if the resource dictionary is empty before writing.
