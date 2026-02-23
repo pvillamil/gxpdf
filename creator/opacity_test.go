@@ -564,3 +564,285 @@ func TestOpacity_RectValidation(t *testing.T) {
 		})
 	}
 }
+
+// -------------------------------------------------------------------------
+// Text Opacity Tests (feat-075, issue #46)
+// -------------------------------------------------------------------------
+
+// TestAddTextColorAlpha verifies that text with opacity stores the correct
+// TextOperation and that the opacity value is propagated.
+func TestAddTextColorAlpha(t *testing.T) {
+	c := New()
+	page, err := c.NewPage()
+	if err != nil {
+		t.Fatalf("NewPage() error = %v", err)
+	}
+
+	err = page.AddTextColorAlpha("Hello", 100, 700, Helvetica, 12, Red, 0.5)
+	if err != nil {
+		t.Fatalf("AddTextColorAlpha() error = %v", err)
+	}
+
+	ops := page.TextOperations()
+	if len(ops) != 1 {
+		t.Fatalf("expected 1 text operation, got %d", len(ops))
+	}
+
+	op := ops[0]
+	if op.Opacity == nil {
+		t.Fatal("expected Opacity to be set, got nil")
+	}
+	if *op.Opacity != 0.5 {
+		t.Errorf("expected Opacity 0.5, got %f", *op.Opacity)
+	}
+	if op.Text != "Hello" {
+		t.Errorf("expected text 'Hello', got %q", op.Text)
+	}
+}
+
+// TestAddTextColorRotatedAlpha verifies combined rotation and opacity.
+func TestAddTextColorRotatedAlpha(t *testing.T) {
+	c := New()
+	page, err := c.NewPage()
+	if err != nil {
+		t.Fatalf("NewPage() error = %v", err)
+	}
+
+	err = page.AddTextColorRotatedAlpha("DRAFT", 300, 400, HelveticaBold, 48, Red, 45, 0.3)
+	if err != nil {
+		t.Fatalf("AddTextColorRotatedAlpha() error = %v", err)
+	}
+
+	ops := page.TextOperations()
+	if len(ops) != 1 {
+		t.Fatalf("expected 1 text operation, got %d", len(ops))
+	}
+
+	op := ops[0]
+	if op.Opacity == nil {
+		t.Fatal("expected Opacity to be set, got nil")
+	}
+	if *op.Opacity != 0.3 {
+		t.Errorf("expected Opacity 0.3, got %f", *op.Opacity)
+	}
+	if op.Rotation != 45 {
+		t.Errorf("expected Rotation 45, got %f", op.Rotation)
+	}
+}
+
+// TestAddTextColorAlpha_ValidationErrors tests boundary validation for text opacity.
+func TestAddTextColorAlpha_ValidationErrors(t *testing.T) {
+	tests := []struct {
+		name    string
+		opacity float64
+		wantErr bool
+	}{
+		{"valid 0.0", 0.0, false},
+		{"valid 0.5", 0.5, false},
+		{"valid 1.0", 1.0, false},
+		{"invalid -0.01", -0.01, true},
+		{"invalid 1.01", 1.01, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := New()
+			page, _ := c.NewPage()
+			err := page.AddTextColorAlpha("test", 100, 700, Helvetica, 12, Black, tt.opacity)
+			if tt.wantErr && err == nil {
+				t.Errorf("expected validation error for opacity %.4f, got nil", tt.opacity)
+			}
+			if !tt.wantErr && err != nil {
+				t.Errorf("unexpected error for opacity %.4f: %v", tt.opacity, err)
+			}
+		})
+	}
+}
+
+// TestConvertTextOps_OpacityPropagation verifies that opacity is passed from
+// creator TextOperation to writer TextOp via convertTextOps.
+func TestConvertTextOps_OpacityPropagation(t *testing.T) {
+	opacity := 0.4
+	ops := []TextOperation{
+		{
+			Text:    "translucent",
+			X:       50,
+			Y:       600,
+			Font:    Helvetica,
+			Size:    14,
+			Opacity: &opacity,
+		},
+		{
+			Text: "opaque",
+			X:    50,
+			Y:    580,
+			Font: Helvetica,
+			Size: 14,
+			// Opacity is nil → writer.TextOp.Opacity should be 0
+		},
+	}
+
+	writerOps := convertTextOps(ops)
+	if len(writerOps) != 2 {
+		t.Fatalf("expected 2 writer ops, got %d", len(writerOps))
+	}
+
+	if writerOps[0].Opacity != 0.4 {
+		t.Errorf("expected writer op[0] Opacity 0.4, got %f", writerOps[0].Opacity)
+	}
+	if writerOps[1].Opacity != 0 {
+		t.Errorf("expected writer op[1] Opacity 0 (not set), got %f", writerOps[1].Opacity)
+	}
+}
+
+// TestTextOpacity_ContentStream verifies that the writer emits the correct
+// ExtGState operator for text with opacity.
+func TestTextOpacity_ContentStream(t *testing.T) {
+	textOps := []writer.TextOp{
+		{
+			Text:    "semi-transparent",
+			X:       100,
+			Y:       700,
+			Font:    "Helvetica",
+			Size:    12,
+			Opacity: 0.5,
+		},
+	}
+
+	content, resources, err := writer.GenerateContentStream(textOps)
+	if err != nil {
+		t.Fatalf("GenerateContentStream() error = %v", err)
+	}
+
+	stream := string(content)
+
+	// Must contain gs operator for ExtGState
+	if !strings.Contains(stream, " gs") {
+		t.Errorf("expected ExtGState gs operator in stream, got: %s", stream)
+	}
+
+	// Must contain q/Q (save/restore state) around the text
+	if !strings.Contains(stream, "q\n") {
+		t.Errorf("expected SaveState (q) in stream, got: %s", stream)
+	}
+	if !strings.Contains(stream, "Q\n") {
+		t.Errorf("expected RestoreState (Q) in stream, got: %s", stream)
+	}
+
+	// Resources must have ExtGState entry
+	resStr := resources.String()
+	if !strings.Contains(resStr, "/ExtGState") {
+		t.Errorf("expected /ExtGState in resources, got: %s", resStr)
+	}
+}
+
+// TestTextOpacity_FullOpaque verifies that opacity 1.0 does NOT emit ExtGState.
+func TestTextOpacity_FullOpaque(t *testing.T) {
+	textOps := []writer.TextOp{
+		{
+			Text:    "fully opaque",
+			X:       100,
+			Y:       700,
+			Font:    "Helvetica",
+			Size:    12,
+			Opacity: 1.0,
+		},
+	}
+
+	content, _, err := writer.GenerateContentStream(textOps)
+	if err != nil {
+		t.Fatalf("GenerateContentStream() error = %v", err)
+	}
+
+	stream := string(content)
+
+	// Should NOT contain gs operator (fully opaque = no ExtGState needed)
+	if strings.Contains(stream, " gs") {
+		t.Errorf("fully opaque text should NOT emit gs operator, got: %s", stream)
+	}
+}
+
+// TestTextOpacity_ZeroValue verifies that Opacity == 0 (not set) does NOT emit ExtGState.
+func TestTextOpacity_ZeroValue(t *testing.T) {
+	textOps := []writer.TextOp{
+		{
+			Text: "default opacity",
+			X:    100,
+			Y:    700,
+			Font: "Helvetica",
+			Size: 12,
+			// Opacity is 0 (zero value, means "not set")
+		},
+	}
+
+	content, _, err := writer.GenerateContentStream(textOps)
+	if err != nil {
+		t.Fatalf("GenerateContentStream() error = %v", err)
+	}
+
+	stream := string(content)
+
+	if strings.Contains(stream, " gs") {
+		t.Errorf("default (zero) opacity should NOT emit gs operator, got: %s", stream)
+	}
+}
+
+// TestTextOpacity_WithRotation verifies that opacity and rotation work together.
+func TestTextOpacity_WithRotation(t *testing.T) {
+	textOps := []writer.TextOp{
+		{
+			Text:     "rotated + transparent",
+			X:        200,
+			Y:        400,
+			Font:     "Helvetica",
+			Size:     24,
+			Opacity:  0.5,
+			Rotation: 45,
+		},
+	}
+
+	content, _, err := writer.GenerateContentStream(textOps)
+	if err != nil {
+		t.Fatalf("GenerateContentStream() error = %v", err)
+	}
+
+	stream := string(content)
+
+	// Must have both gs (opacity) and Tm (rotation)
+	if !strings.Contains(stream, " gs") {
+		t.Errorf("expected gs operator for opacity, got: %s", stream)
+	}
+	if !strings.Contains(stream, " Tm") {
+		t.Errorf("expected Tm operator for rotation, got: %s", stream)
+	}
+}
+
+// TestAddTextCustomFontColorAlpha verifies custom font with opacity (nil font check).
+func TestAddTextCustomFontColorAlpha(t *testing.T) {
+	c := New()
+	page, _ := c.NewPage()
+
+	// nil font should return error
+	err := page.AddTextCustomFontColorAlpha("test", 100, 700, nil, 12, Black, 0.5)
+	if err == nil {
+		t.Error("expected error for nil font, got nil")
+	}
+}
+
+// TestAddTextCustomFontColorRotatedAlpha verifies the full-featured method.
+func TestAddTextCustomFontColorRotatedAlpha(t *testing.T) {
+	c := New()
+	page, _ := c.NewPage()
+
+	// nil font should return error
+	err := page.AddTextCustomFontColorRotatedAlpha("test", 100, 700, nil, 12, Black, 45, 0.5)
+	if err == nil {
+		t.Error("expected error for nil font, got nil")
+	}
+
+	// invalid opacity should return error
+	err = page.AddTextCustomFontColorRotatedAlpha("test", 100, 700, nil, 12, Black, 45, 1.5)
+	if err == nil {
+		t.Error("expected error for nil font, got nil")
+	}
+}

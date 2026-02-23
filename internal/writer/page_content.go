@@ -45,6 +45,11 @@ type TextOp struct {
 	// Zero means standard horizontal text (Td operator).
 	// Non-zero values use the Tm (text matrix) operator instead.
 	Rotation float64
+
+	// Opacity is the text opacity (0.0 = fully transparent, 1.0 = fully opaque).
+	// A value of 0 means "not set" (default fully opaque).
+	// Values strictly between 0 and 1 emit an ExtGState with /ca and /CA keys.
+	Opacity float64
 }
 
 // EmbeddedFont represents a custom TrueType/OpenType font for embedding.
@@ -284,6 +289,13 @@ func GenerateContentStreamWithGraphics(textOps []TextOp, graphicsOps []GraphicsO
 			usedFonts[fontKey] = fontResName
 		}
 
+		// Apply opacity via ExtGState if needed (must be outside BT/ET).
+		hasOpacity := op.Opacity > 0 && op.Opacity < 1.0
+		if hasOpacity {
+			csw.SaveState()
+			applyOpacity(csw, op.Opacity, resources)
+		}
+
 		// Begin text object
 		csw.BeginText()
 
@@ -319,6 +331,10 @@ func GenerateContentStreamWithGraphics(textOps []TextOp, graphicsOps []GraphicsO
 
 		// End text object
 		csw.EndText()
+
+		if hasOpacity {
+			csw.RestoreState()
+		}
 	}
 
 	return csw.Bytes(), resources, nil
