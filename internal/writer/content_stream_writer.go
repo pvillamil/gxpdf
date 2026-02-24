@@ -481,6 +481,28 @@ func (csw *ContentStreamWriter) SetGraphicsState(name string) {
 	csw.writeOp(fmt.Sprintf("/%s", name), "gs")
 }
 
+// ApplyShading paints an area with a shading pattern (sh operator).
+//
+// The shading fills the entire current clipping path. To shade a specific shape,
+// first define the shape path, apply clipping (W n), then call ApplyShading.
+//
+// Parameters:
+//   - name: Shading resource name (e.g., "Sh1")
+//
+// Example:
+//
+//	csw.SaveState()
+//	csw.Rectangle(x, y, w, h)      // Define clipping shape
+//	csw.Clip()                       // W operator
+//	csw.EndPath()                    // n operator (no-op paint)
+//	csw.ApplyShading("Sh1")         // Fill with gradient
+//	csw.RestoreState()
+//
+// Reference: PDF 1.7 Spec, Section 8.7.4.3 (Shading Operator).
+func (csw *ContentStreamWriter) ApplyShading(name string) {
+	csw.writeOp(fmt.Sprintf("/%s", name), "sh")
+}
+
 // --- COMPRESSION ---
 
 // SetCompression sets the compression level for this content stream.

@@ -1,6 +1,7 @@
 package creator
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -179,4 +180,136 @@ func TestCreator_MultiplePages(t *testing.T) {
 	assert.Equal(t, 1008.0, page3.Height())
 
 	assert.Equal(t, 3, c.PageCount())
+}
+
+func TestCreator_MetadataWrittenToPDF(t *testing.T) {
+	c := New()
+	c.SetTitle("Enterprise Report")
+	c.SetAuthor("Jane Smith")
+	c.SetSubject("Annual Analysis")
+
+	_, err := c.NewPage()
+	require.NoError(t, err)
+
+	pdfBytes, err := c.Bytes()
+	require.NoError(t, err)
+
+	pdfStr := string(pdfBytes)
+
+	// Info dictionary must contain metadata as proper PDF objects
+	assert.True(t, strings.Contains(pdfStr, "/Title (Enterprise Report)"),
+		"PDF output must contain /Title in Info dictionary")
+	assert.True(t, strings.Contains(pdfStr, "/Author (Jane Smith)"),
+		"PDF output must contain /Author in Info dictionary")
+	assert.True(t, strings.Contains(pdfStr, "/Subject (Annual Analysis)"),
+		"PDF output must contain /Subject in Info dictionary")
+
+	// Trailer must reference Info with real object number (not 0)
+	assert.True(t, strings.Contains(pdfStr, "/Info "),
+		"trailer must contain /Info reference")
+	assert.False(t, strings.Contains(pdfStr, "/Info 0 0 R"),
+		"/Info must not reference object 0")
+}
+
+func TestGradientFill_LinearRect(t *testing.T) {
+	c := New()
+	page, err := c.NewPage()
+	require.NoError(t, err)
+
+	// Draw a rectangle with a linear gradient fill.
+	grad := NewLinearGradient(50, 700, 250, 700)
+	err = grad.AddColorStop(0, Red)
+	require.NoError(t, err)
+	err = grad.AddColorStop(1, Blue)
+	require.NoError(t, err)
+
+	err = page.DrawRect(50, 700, 200, 60, &RectOptions{
+		FillGradient: grad,
+		StrokeColor:  &Black,
+		StrokeWidth:  1.0,
+	})
+	require.NoError(t, err)
+
+	// Generate PDF bytes.
+	pdfBytes, err := c.Bytes()
+	require.NoError(t, err)
+
+	pdfStr := string(pdfBytes)
+
+	// Must contain shading resource.
+	assert.True(t, strings.Contains(pdfStr, "/Shading <<"),
+		"PDF must contain /Shading resource dictionary")
+	assert.True(t, strings.Contains(pdfStr, "/Sh1 "),
+		"PDF must contain /Sh1 shading reference")
+
+	// Must contain shading dictionary.
+	assert.True(t, strings.Contains(pdfStr, "/ShadingType 2"),
+		"PDF must contain /ShadingType 2 (axial)")
+	assert.True(t, strings.Contains(pdfStr, "/ColorSpace /DeviceRGB"),
+		"PDF must contain /ColorSpace /DeviceRGB")
+
+	// Must contain function objects.
+	assert.True(t, strings.Contains(pdfStr, "/FunctionType 2"),
+		"PDF must contain /FunctionType 2 (exponential)")
+
+	// Must NOT contain "0 0 R" for shading references.
+	// The /Sh1 reference should have a real object number.
+	assert.False(t, strings.Contains(pdfStr, "/Sh1 0 0 R"),
+		"/Sh1 must not reference placeholder object 0")
+}
+
+func TestGradientFill_RadialCircle(t *testing.T) {
+	c := New()
+	page, err := c.NewPage()
+	require.NoError(t, err)
+
+	// Draw a circle with a radial gradient fill.
+	grad := NewRadialGradient(200, 500, 0, 200, 500, 50)
+	err = grad.AddColorStop(0, White)
+	require.NoError(t, err)
+	err = grad.AddColorStop(1, Blue)
+	require.NoError(t, err)
+
+	err = page.DrawCircle(200, 500, 50, &CircleOptions{
+		FillGradient: grad,
+	})
+	require.NoError(t, err)
+
+	pdfBytes, err := c.Bytes()
+	require.NoError(t, err)
+
+	pdfStr := string(pdfBytes)
+	assert.True(t, strings.Contains(pdfStr, "/ShadingType 3"),
+		"PDF must contain /ShadingType 3 (radial)")
+}
+
+func TestGradientFill_MultiStop(t *testing.T) {
+	c := New()
+	page, err := c.NewPage()
+	require.NoError(t, err)
+
+	// Draw a rect with a 3-stop gradient.
+	grad := NewLinearGradient(50, 400, 250, 400)
+	err = grad.AddColorStop(0, Red)
+	require.NoError(t, err)
+	err = grad.AddColorStop(0.5, Yellow)
+	require.NoError(t, err)
+	err = grad.AddColorStop(1, Green)
+	require.NoError(t, err)
+
+	err = page.DrawRect(50, 400, 200, 60, &RectOptions{
+		FillGradient: grad,
+	})
+	require.NoError(t, err)
+
+	pdfBytes, err := c.Bytes()
+	require.NoError(t, err)
+
+	pdfStr := string(pdfBytes)
+
+	// Multi-stop should produce a Type 3 stitching function.
+	assert.True(t, strings.Contains(pdfStr, "/FunctionType 3"),
+		"PDF must contain /FunctionType 3 (stitching) for multi-stop gradient")
+	assert.True(t, strings.Contains(pdfStr, "/Bounds"),
+		"PDF must contain /Bounds in stitching function")
 }

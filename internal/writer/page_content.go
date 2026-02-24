@@ -412,6 +412,19 @@ func setFillColor(csw *ContentStreamWriter, rgb *RGB, cmyk *CMYK) {
 	}
 }
 
+// setStrokeState sets line width, dash pattern, and stroke color from a GraphicsOp.
+func setStrokeState(csw *ContentStreamWriter, gop GraphicsOp) {
+	if gop.StrokeWidth > 0 {
+		csw.SetLineWidth(gop.StrokeWidth)
+	} else {
+		csw.SetLineWidth(1.0)
+	}
+	if gop.Dashed && len(gop.DashArray) > 0 {
+		csw.SetDashPattern(gop.DashArray, gop.DashPhase)
+	}
+	setStrokeColor(csw, gop.StrokeColor, gop.StrokeColorCMYK)
+}
+
 // renderLine renders a line to the content stream.
 func renderLine(csw *ContentStreamWriter, gop GraphicsOp, resources *ResourceDictionary) error {
 	// Apply opacity before other state changes so it scopes the entire shape.
@@ -447,39 +460,31 @@ func renderRect(csw *ContentStreamWriter, gop GraphicsOp, resources *ResourceDic
 	// Apply opacity before other state changes so it scopes the entire shape.
 	applyOpacity(csw, gop.Opacity, resources)
 
-	// Set line width
-	if gop.StrokeWidth > 0 {
-		csw.SetLineWidth(gop.StrokeWidth)
-	} else {
-		csw.SetLineWidth(1.0) // Default
-	}
-
-	// Set dash pattern if dashed
-	if gop.Dashed && len(gop.DashArray) > 0 {
-		csw.SetDashPattern(gop.DashArray, gop.DashPhase)
-	}
-
-	// Set stroke color
-	setStrokeColor(csw, gop.StrokeColor, gop.StrokeColorCMYK)
-
-	// Draw rectangle path
-	csw.Rectangle(gop.X, gop.Y, gop.Width, gop.Height)
-
-	// Handle fill (gradient or solid color)
-	hasFill := gop.FillColor != nil || gop.FillColorCMYK != nil || gop.FillGradient != nil
 	hasStroke := gop.StrokeColor != nil || gop.StrokeColorCMYK != nil
 
+	// Gradient fill uses clip+shade technique (different from solid fill).
 	if gop.FillGradient != nil {
-		// Use gradient fill
-		// Note: Full gradient implementation requires shading pattern resource
-		// For now, use a simplified approach with color interpolation
-		renderGradientFill(csw, gop.FillGradient)
-	} else {
-		// Use solid color fill
-		setFillColor(csw, gop.FillColor, gop.FillColorCMYK)
+		writePath := func() {
+			csw.Rectangle(gop.X, gop.Y, gop.Width, gop.Height)
+		}
+		strokeFn := func() {
+			setStrokeState(csw, gop)
+			csw.Rectangle(gop.X, gop.Y, gop.Width, gop.Height)
+			csw.Stroke()
+		}
+		renderGradientFill(csw, gop.FillGradient, resources, writePath, hasStroke, strokeFn)
+		csw.RestoreState()
+		return nil
 	}
 
-	// Fill and/or stroke
+	// Solid fill path.
+	setStrokeState(csw, gop)
+	setStrokeColor(csw, gop.StrokeColor, gop.StrokeColorCMYK)
+	csw.Rectangle(gop.X, gop.Y, gop.Width, gop.Height)
+
+	hasFill := gop.FillColor != nil || gop.FillColorCMYK != nil
+	setFillColor(csw, gop.FillColor, gop.FillColorCMYK)
+
 	if hasStroke && hasFill {
 		csw.FillAndStroke()
 	} else if hasFill {
@@ -488,7 +493,6 @@ func renderRect(csw *ContentStreamWriter, gop GraphicsOp, resources *ResourceDic
 		csw.Stroke()
 	}
 
-	// Restore graphics state
 	csw.RestoreState()
 	return nil
 }
@@ -564,56 +568,46 @@ func renderTextBlock(csw *ContentStreamWriter, gop GraphicsOp, resources *Resour
 	return nil
 }
 
-// renderCircle renders a circle to the content stream using Bézier curves.
-func renderCircle(csw *ContentStreamWriter, gop GraphicsOp, resources *ResourceDictionary) error {
-	// Apply opacity before other state changes so it scopes the entire shape.
-	applyOpacity(csw, gop.Opacity, resources)
-
-	// Set line width
-	if gop.StrokeWidth > 0 {
-		csw.SetLineWidth(gop.StrokeWidth)
-	} else {
-		csw.SetLineWidth(1.0) // Default
-	}
-
-	// Set stroke color
-	setStrokeColor(csw, gop.StrokeColor, gop.StrokeColorCMYK)
-
-	// Draw circle using 4 Bézier curves
-	// kappa = 4/3 * (sqrt(2) - 1) ≈ 0.5522847498
+// writeCirclePath emits the Bézier curve operators for a circle path.
+func writeCirclePath(csw *ContentStreamWriter, cx, cy, r float64) {
 	const kappa = 0.5522847498
-	cx, cy, r := gop.X, gop.Y, gop.Radius
 	k := r * kappa
 
-	// Start at right (3 o'clock)
 	csw.MoveTo(cx+r, cy)
-
-	// Top-right quarter
 	csw.CurveTo(cx+r, cy+k, cx+k, cy+r, cx, cy+r)
-
-	// Top-left quarter
 	csw.CurveTo(cx-k, cy+r, cx-r, cy+k, cx-r, cy)
-
-	// Bottom-left quarter
 	csw.CurveTo(cx-r, cy-k, cx-k, cy-r, cx, cy-r)
-
-	// Bottom-right quarter (back to start)
 	csw.CurveTo(cx+k, cy-r, cx+r, cy-k, cx+r, cy)
-
-	// Close path
 	csw.ClosePath()
+}
 
-	// Handle fill (gradient or solid color)
-	hasFill := gop.FillColor != nil || gop.FillColorCMYK != nil || gop.FillGradient != nil
+// renderCircle renders a circle to the content stream using Bézier curves.
+func renderCircle(csw *ContentStreamWriter, gop GraphicsOp, resources *ResourceDictionary) error {
+	applyOpacity(csw, gop.Opacity, resources)
+
 	hasStroke := gop.StrokeColor != nil || gop.StrokeColorCMYK != nil
+	cx, cy, r := gop.X, gop.Y, gop.Radius
 
 	if gop.FillGradient != nil {
-		renderGradientFill(csw, gop.FillGradient)
-	} else {
-		setFillColor(csw, gop.FillColor, gop.FillColorCMYK)
+		writePath := func() {
+			writeCirclePath(csw, cx, cy, r)
+		}
+		strokeFn := func() {
+			setStrokeState(csw, gop)
+			writeCirclePath(csw, cx, cy, r)
+			csw.Stroke()
+		}
+		renderGradientFill(csw, gop.FillGradient, resources, writePath, hasStroke, strokeFn)
+		csw.RestoreState()
+		return nil
 	}
 
-	// Fill and/or stroke
+	setStrokeState(csw, gop)
+	writeCirclePath(csw, cx, cy, r)
+
+	hasFill := gop.FillColor != nil || gop.FillColorCMYK != nil
+	setFillColor(csw, gop.FillColor, gop.FillColorCMYK)
+
 	if hasStroke && hasFill {
 		csw.FillAndStroke()
 	} else if hasFill {
@@ -622,9 +616,17 @@ func renderCircle(csw *ContentStreamWriter, gop GraphicsOp, resources *ResourceD
 		csw.Stroke()
 	}
 
-	// Restore graphics state
 	csw.RestoreState()
 	return nil
+}
+
+// writePolygonPath emits the path operators for a polygon.
+func writePolygonPath(csw *ContentStreamWriter, vertices []Point) {
+	csw.MoveTo(vertices[0].X, vertices[0].Y)
+	for i := 1; i < len(vertices); i++ {
+		csw.LineTo(vertices[i].X, vertices[i].Y)
+	}
+	csw.ClosePath()
 }
 
 // renderPolygon renders a polygon to the content stream.
@@ -633,47 +635,30 @@ func renderPolygon(csw *ContentStreamWriter, gop GraphicsOp, resources *Resource
 		return fmt.Errorf("polygon must have at least 3 vertices")
 	}
 
-	// Apply opacity before other state changes so it scopes the entire shape.
 	applyOpacity(csw, gop.Opacity, resources)
 
-	// Set line width
-	if gop.StrokeWidth > 0 {
-		csw.SetLineWidth(gop.StrokeWidth)
-	} else {
-		csw.SetLineWidth(1.0) // Default
-	}
-
-	// Set dash pattern if dashed
-	if gop.Dashed && len(gop.DashArray) > 0 {
-		csw.SetDashPattern(gop.DashArray, gop.DashPhase)
-	}
-
-	// Set stroke color
-	setStrokeColor(csw, gop.StrokeColor, gop.StrokeColorCMYK)
-
-	// Draw polygon path
-	// Start at first vertex
-	csw.MoveTo(gop.Vertices[0].X, gop.Vertices[0].Y)
-
-	// Draw lines to remaining vertices
-	for i := 1; i < len(gop.Vertices); i++ {
-		csw.LineTo(gop.Vertices[i].X, gop.Vertices[i].Y)
-	}
-
-	// Close path (back to first vertex)
-	csw.ClosePath()
-
-	// Handle fill (gradient or solid color)
-	hasFill := gop.FillColor != nil || gop.FillColorCMYK != nil || gop.FillGradient != nil
 	hasStroke := gop.StrokeColor != nil || gop.StrokeColorCMYK != nil
 
 	if gop.FillGradient != nil {
-		renderGradientFill(csw, gop.FillGradient)
-	} else {
-		setFillColor(csw, gop.FillColor, gop.FillColorCMYK)
+		writePath := func() {
+			writePolygonPath(csw, gop.Vertices)
+		}
+		strokeFn := func() {
+			setStrokeState(csw, gop)
+			writePolygonPath(csw, gop.Vertices)
+			csw.Stroke()
+		}
+		renderGradientFill(csw, gop.FillGradient, resources, writePath, hasStroke, strokeFn)
+		csw.RestoreState()
+		return nil
 	}
 
-	// Fill and/or stroke
+	setStrokeState(csw, gop)
+	writePolygonPath(csw, gop.Vertices)
+
+	hasFill := gop.FillColor != nil || gop.FillColorCMYK != nil
+	setFillColor(csw, gop.FillColor, gop.FillColorCMYK)
+
 	if hasStroke && hasFill {
 		csw.FillAndStroke()
 	} else if hasFill {
@@ -682,7 +667,6 @@ func renderPolygon(csw *ContentStreamWriter, gop GraphicsOp, resources *Resource
 		csw.Stroke()
 	}
 
-	// Restore graphics state
 	csw.RestoreState()
 	return nil
 }
@@ -728,57 +712,47 @@ func renderPolyline(csw *ContentStreamWriter, gop GraphicsOp, resources *Resourc
 	return nil
 }
 
-// renderEllipse renders an ellipse to the content stream using Bézier curves.
-func renderEllipse(csw *ContentStreamWriter, gop GraphicsOp, resources *ResourceDictionary) error {
-	// Apply opacity before other state changes so it scopes the entire shape.
-	applyOpacity(csw, gop.Opacity, resources)
-
-	// Set line width
-	if gop.StrokeWidth > 0 {
-		csw.SetLineWidth(gop.StrokeWidth)
-	} else {
-		csw.SetLineWidth(1.0) // Default
-	}
-
-	// Set stroke color
-	setStrokeColor(csw, gop.StrokeColor, gop.StrokeColorCMYK)
-
-	// Draw ellipse using 4 Bézier curves
-	// kappa = 4/3 * (sqrt(2) - 1) ≈ 0.5522847498
+// writeEllipsePath emits the Bézier curve operators for an ellipse path.
+func writeEllipsePath(csw *ContentStreamWriter, cx, cy, rx, ry float64) {
 	const kappa = 0.5522847498
-	cx, cy, rx, ry := gop.X, gop.Y, gop.RX, gop.RY
 	kx := rx * kappa
 	ky := ry * kappa
 
-	// Start at right (3 o'clock)
 	csw.MoveTo(cx+rx, cy)
-
-	// Top-right quarter
 	csw.CurveTo(cx+rx, cy+ky, cx+kx, cy+ry, cx, cy+ry)
-
-	// Top-left quarter
 	csw.CurveTo(cx-kx, cy+ry, cx-rx, cy+ky, cx-rx, cy)
-
-	// Bottom-left quarter
 	csw.CurveTo(cx-rx, cy-ky, cx-kx, cy-ry, cx, cy-ry)
-
-	// Bottom-right quarter (back to start)
 	csw.CurveTo(cx+kx, cy-ry, cx+rx, cy-ky, cx+rx, cy)
-
-	// Close path
 	csw.ClosePath()
+}
 
-	// Handle fill (gradient or solid color)
-	hasFill := gop.FillColor != nil || gop.FillColorCMYK != nil || gop.FillGradient != nil
+// renderEllipse renders an ellipse to the content stream using Bézier curves.
+func renderEllipse(csw *ContentStreamWriter, gop GraphicsOp, resources *ResourceDictionary) error {
+	applyOpacity(csw, gop.Opacity, resources)
+
 	hasStroke := gop.StrokeColor != nil || gop.StrokeColorCMYK != nil
+	cx, cy, rx, ry := gop.X, gop.Y, gop.RX, gop.RY
 
 	if gop.FillGradient != nil {
-		renderGradientFill(csw, gop.FillGradient)
-	} else {
-		setFillColor(csw, gop.FillColor, gop.FillColorCMYK)
+		writePath := func() {
+			writeEllipsePath(csw, cx, cy, rx, ry)
+		}
+		strokeFn := func() {
+			setStrokeState(csw, gop)
+			writeEllipsePath(csw, cx, cy, rx, ry)
+			csw.Stroke()
+		}
+		renderGradientFill(csw, gop.FillGradient, resources, writePath, hasStroke, strokeFn)
+		csw.RestoreState()
+		return nil
 	}
 
-	// Fill and/or stroke
+	setStrokeState(csw, gop)
+	writeEllipsePath(csw, cx, cy, rx, ry)
+
+	hasFill := gop.FillColor != nil || gop.FillColorCMYK != nil
+	setFillColor(csw, gop.FillColor, gop.FillColorCMYK)
+
 	if hasStroke && hasFill {
 		csw.FillAndStroke()
 	} else if hasFill {
@@ -787,31 +761,60 @@ func renderEllipse(csw *ContentStreamWriter, gop GraphicsOp, resources *Resource
 		csw.Stroke()
 	}
 
-	// Restore graphics state
 	csw.RestoreState()
 	return nil
 }
 
-// renderGradientFill applies a gradient fill to the current path.
+// renderGradientFill applies a gradient fill to a shape using the PDF clip+shade technique.
 //
-// TODO: Full gradient implementation requires:
-// 1. Creating shading dictionary with Function objects
-// 2. Adding shading to resource dictionary
-// 3. Using 'sh' operator to apply shading
+// The technique works as follows:
+//  1. The caller's writePath closure constructs the shape path
+//  2. W n (clip to path, no-op paint) — restricts shading to the shape
+//  3. /ShN sh — apply the shading within the clipped area
+//  4. If the shape also has a stroke, a new q/Q pair reconstructs the path and strokes it
 //
-// For now, this function uses a fallback: the middle color of the gradient.
-// This allows the API to work while we build the full infrastructure.
-func renderGradientFill(csw *ContentStreamWriter, grad *GradientOp) {
+// Parameters:
+//   - csw: Content stream writer
+//   - grad: Gradient parameters
+//   - resources: Resource dictionary (shading will be registered here)
+//   - writePath: Closure that emits path construction operators for the shape
+//   - hasStroke: Whether the shape needs a stroke on top of the gradient
+//   - strokeFn: Closure that emits stroke-related operators (color, width, dash) and the path again, then S
+//
+// Reference: PDF 1.7 Spec, Section 8.7.4 (Shading Patterns).
+func renderGradientFill(csw *ContentStreamWriter, grad *GradientOp, resources *ResourceDictionary, writePath func(), hasStroke bool, strokeFn func()) {
 	if grad == nil || len(grad.ColorStops) == 0 {
 		return
 	}
 
-	// Fallback: use middle color stop
-	// In the future, this will create a proper PDF shading pattern
-	midIdx := len(grad.ColorStops) / 2
-	midColor := grad.ColorStops[midIdx].Color
+	// Register shading in resource dictionary (object number set later by pages.go).
+	shName := resources.AddShading(grad)
 
-	csw.SetFillColorRGB(midColor.R, midColor.G, midColor.B)
+	// Clip to shape path, then shade.
+	writePath()
+	csw.Clip()
+	csw.EndPath()
+	csw.ApplyShading(shName)
+
+	// If stroke is needed, we must do it in a separate graphics state
+	// because the clip+n consumed the path.
+	if hasStroke && strokeFn != nil {
+		// RestoreState to remove the clip, then re-enter SaveState for stroke.
+		csw.RestoreState()
+		csw.SaveState()
+		strokeFn()
+	}
+}
+
+// writeBezierPath emits the path operators for a Bézier curve.
+func writeBezierPath(csw *ContentStreamWriter, segs []BezierSegment, closed bool) {
+	csw.MoveTo(segs[0].Start.X, segs[0].Start.Y)
+	for _, seg := range segs {
+		csw.CurveTo(seg.C1.X, seg.C1.Y, seg.C2.X, seg.C2.Y, seg.End.X, seg.End.Y)
+	}
+	if closed {
+		csw.ClosePath()
+	}
 }
 
 // renderBezier renders a Bézier curve to the content stream.
@@ -820,50 +823,32 @@ func renderBezier(csw *ContentStreamWriter, gop GraphicsOp, resources *ResourceD
 		return fmt.Errorf("bezier curve must have at least 1 segment")
 	}
 
-	// Apply opacity before other state changes so it scopes the entire shape.
 	applyOpacity(csw, gop.Opacity, resources)
 
-	// Set line width
-	if gop.StrokeWidth > 0 {
-		csw.SetLineWidth(gop.StrokeWidth)
-	} else {
-		csw.SetLineWidth(1.0) // Default
-	}
-
-	// Set dash pattern if dashed
-	if gop.Dashed && len(gop.DashArray) > 0 {
-		csw.SetDashPattern(gop.DashArray, gop.DashPhase)
-	}
-
-	// Set stroke color
-	setStrokeColor(csw, gop.StrokeColor, gop.StrokeColorCMYK)
-
-	// Draw Bézier curve path
-	// Start at first segment's start point
-	firstSeg := gop.BezierSegs[0]
-	csw.MoveTo(firstSeg.Start.X, firstSeg.Start.Y)
-
-	// Draw each segment
-	for _, seg := range gop.BezierSegs {
-		csw.CurveTo(seg.C1.X, seg.C1.Y, seg.C2.X, seg.C2.Y, seg.End.X, seg.End.Y)
-	}
-
-	// Close path if requested
-	if gop.Closed {
-		csw.ClosePath()
-	}
-
-	// Handle fill (gradient or solid color)
-	hasFill := (gop.FillColor != nil || gop.FillColorCMYK != nil || gop.FillGradient != nil) && gop.Closed
 	hasStroke := gop.StrokeColor != nil || gop.StrokeColorCMYK != nil
 
 	if gop.FillGradient != nil && gop.Closed {
-		renderGradientFill(csw, gop.FillGradient)
-	} else if gop.Closed {
+		writePath := func() {
+			writeBezierPath(csw, gop.BezierSegs, gop.Closed)
+		}
+		strokeFn := func() {
+			setStrokeState(csw, gop)
+			writeBezierPath(csw, gop.BezierSegs, gop.Closed)
+			csw.Stroke()
+		}
+		renderGradientFill(csw, gop.FillGradient, resources, writePath, hasStroke, strokeFn)
+		csw.RestoreState()
+		return nil
+	}
+
+	setStrokeState(csw, gop)
+	writeBezierPath(csw, gop.BezierSegs, gop.Closed)
+
+	hasFill := (gop.FillColor != nil || gop.FillColorCMYK != nil) && gop.Closed
+	if gop.Closed {
 		setFillColor(csw, gop.FillColor, gop.FillColorCMYK)
 	}
 
-	// Fill and/or stroke
 	if hasStroke && hasFill {
 		csw.FillAndStroke()
 	} else if hasFill {
@@ -872,7 +857,6 @@ func renderBezier(csw *ContentStreamWriter, gop GraphicsOp, resources *ResourceD
 		csw.Stroke()
 	}
 
-	// Restore graphics state
 	csw.RestoreState()
 	return nil
 }

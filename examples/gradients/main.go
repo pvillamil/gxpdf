@@ -1,10 +1,7 @@
 // Package main demonstrates gradient fills in PDF creation.
 //
-// This example shows how to use linear and radial gradients to fill shapes.
-//
-// Note: This is a Phase 1 implementation. Currently, gradients are rendered
-// using the middle color as a solid fill. Full PDF shading pattern support
-// (with smooth color transitions) will be added in Phase 2.
+// This example shows how to use linear and radial gradients to fill shapes
+// using PDF Shading dictionaries (ShadingType 2 for linear, ShadingType 3 for radial).
 package main
 
 import (
@@ -144,13 +141,8 @@ func main() {
 	}
 
 	// Add footer note
-	err = page.AddText("Note: Phase 1 implementation - gradients currently render as solid colors.",
+	err = page.AddText("Gradients rendered using PDF Shading dictionaries (Type 2 + Type 3).",
 		50, 50, creator.Helvetica, 10)
-	if err != nil {
-		log.Fatalf("Failed to add footer: %v", err)
-	}
-	err = page.AddText("Full smooth gradient support coming in Phase 2!",
-		50, 35, creator.Helvetica, 10)
 	if err != nil {
 		log.Fatalf("Failed to add footer: %v", err)
 	}
@@ -167,6 +159,4 @@ func main() {
 	fmt.Println("  - Circles (radial gradient)")
 	fmt.Println("  - Polygons (diagonal linear gradient)")
 	fmt.Println("  - Ellipses (radial gradient)")
-	fmt.Println("\nNote: Currently using Phase 1 implementation (solid color fallback).")
-	fmt.Println("The API is ready for Phase 2 when full PDF shading support is added.")
 }

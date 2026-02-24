@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/coregx/gxpdf/internal/document"
+	"github.com/coregx/gxpdf/logging"
 )
 
 // PdfWriter writes PDF documents to files.
@@ -140,6 +142,9 @@ func (w *PdfWriter) WriteWithPageContent(doc *document.Document, pageContents ma
 	catalogObj := w.createCatalog(pagesRootRef, doc)
 	w.objects = append([]*IndirectObject{catalogObj}, w.objects...)
 
+	// Create Info dictionary object if metadata exists
+	infoRef := w.addInfoObject(doc)
+
 	// Write all objects and track their offsets
 	for _, obj := range w.objects {
 		// Get current offset
@@ -164,7 +169,7 @@ func (w *PdfWriter) WriteWithPageContent(doc *document.Document, pageContents ma
 	// Write trailer
 	catalogRef := catalogObj.Number
 	size := w.nextObjNum
-	if err := w.writeTrailer(catalogRef, size, xrefOffset, doc); err != nil {
+	if err := w.writeTrailer(catalogRef, size, xrefOffset, infoRef); err != nil {
 		return fmt.Errorf("failed to write trailer: %w", err)
 	}
 
@@ -223,6 +228,9 @@ func (w *PdfWriter) WriteWithAllContent(
 	catalogObj := w.createCatalog(pagesRootRef, doc)
 	w.objects = append([]*IndirectObject{catalogObj}, w.objects...)
 
+	// Create Info dictionary object if metadata exists
+	infoRef := w.addInfoObject(doc)
+
 	// Write all objects and track their offsets
 	for _, obj := range w.objects {
 		// Get current offset
@@ -247,7 +255,7 @@ func (w *PdfWriter) WriteWithAllContent(
 	// Write trailer
 	catalogRef := catalogObj.Number
 	size := w.nextObjNum
-	if err := w.writeTrailer(catalogRef, size, xrefOffset, doc); err != nil {
+	if err := w.writeTrailer(catalogRef, size, xrefOffset, infoRef); err != nil {
 		return fmt.Errorf("failed to write trailer: %w", err)
 	}
 
@@ -305,6 +313,9 @@ func (w *PdfWriter) Write(doc *document.Document) error {
 	catalogObj := w.createCatalog(pagesRootRef, doc)
 	w.objects = append([]*IndirectObject{catalogObj}, w.objects...)
 
+	// Create Info dictionary object if metadata exists
+	infoRef := w.addInfoObject(doc)
+
 	// Write all objects and track their offsets
 	for _, obj := range w.objects {
 		// Get current offset
@@ -329,7 +340,7 @@ func (w *PdfWriter) Write(doc *document.Document) error {
 	// Write trailer
 	catalogRef := catalogObj.Number
 	size := w.nextObjNum // Total number of objects + 1 (includes object 0)
-	if err := w.writeTrailer(catalogRef, size, xrefOffset, doc); err != nil {
+	if err := w.writeTrailer(catalogRef, size, xrefOffset, infoRef); err != nil {
 		return fmt.Errorf("failed to write trailer: %w", err)
 	}
 
@@ -477,11 +488,17 @@ func (w *PdfWriter) writeXRef() (int64, error) {
 // Format:
 //
 //	trailer
-//	<< /Size N /Root 1 0 R >>
+//	<< /Size N /Root 1 0 R /Info M 0 R >>
 //	startxref
 //	<xref_offset>
 //	%%EOF
-func (w *PdfWriter) writeTrailer(catalogRef int, size int, xrefOffset int64, doc *document.Document) error {
+//
+// Parameters:
+//   - catalogRef: object number of the document catalog
+//   - size: total number of objects (nextObjNum)
+//   - xrefOffset: byte offset where the xref table starts
+//   - infoRef: object number of the Info dictionary (0 = no Info)
+func (w *PdfWriter) writeTrailer(catalogRef int, size int, xrefOffset int64, infoRef int) error {
 	// Write trailer keyword
 	if _, err := w.writer.WriteString("trailer\n"); err != nil {
 		return fmt.Errorf("failed to write trailer keyword: %w", err)
@@ -493,23 +510,9 @@ func (w *PdfWriter) writeTrailer(catalogRef int, size int, xrefOffset int64, doc
 	trailerDict.WriteString(fmt.Sprintf(" /Size %d", size))
 	trailerDict.WriteString(fmt.Sprintf(" /Root %d 0 R", catalogRef))
 
-	// Add Info dictionary if metadata exists
-	if doc.Title() != "" || doc.Author() != "" || doc.Subject() != "" {
-		infoRef := w.allocateObjNum()
+	// Reference Info dictionary if it was created
+	if infoRef > 0 {
 		trailerDict.WriteString(fmt.Sprintf(" /Info %d 0 R", infoRef))
-
-		// Create Info object
-		infoObj := w.createInfo(infoRef, doc)
-		w.objects = append(w.objects, infoObj)
-
-		// Write Info object immediately (before startxref)
-		offset := xrefOffset // Info comes after xref, so we track it
-		w.offsets[infoRef] = offset
-
-		// We need to write it to a temp buffer to calculate size,
-		// but for simplicity, we'll skip Info in this iteration
-		// TODO: Implement Info object writing in next iteration
-		_ = infoObj // Prevent unused variable error
 	}
 
 	trailerDict.WriteString(" >>")
@@ -548,6 +551,26 @@ func (w *PdfWriter) allocateObjNum() int {
 	return num
 }
 
+// addInfoObject creates an Info dictionary object for the document metadata
+// and appends it to w.objects so it is written in the normal object loop.
+// Returns the object number (>0) if created, or 0 if no metadata exists.
+func (w *PdfWriter) addInfoObject(doc *document.Document) int {
+	if doc.Title() == "" && doc.Author() == "" && doc.Subject() == "" {
+		return 0
+	}
+
+	objNum := w.allocateObjNum()
+	infoObj := w.createInfo(objNum, doc)
+	w.objects = append(w.objects, infoObj)
+
+	logging.Logger().Debug("created Info dictionary object",
+		"objNum", objNum,
+		"title", doc.Title(),
+		"author", doc.Author())
+
+	return objNum
+}
+
 // createInfo creates an Info dictionary object with document metadata.
 func (w *PdfWriter) createInfo(objNum int, doc *document.Document) *IndirectObject {
 	var info bytes.Buffer
@@ -580,11 +603,16 @@ func (w *PdfWriter) createInfo(objNum int, doc *document.Document) *IndirectObje
 	return NewIndirectObject(objNum, 0, info.Bytes())
 }
 
-// escapePDFString escapes special characters in PDF strings.
+// escapePDFString escapes special characters in PDF literal strings.
+// Per PDF spec (ISO 32000-1 §7.3.4.2), backslash, open-paren, and
+// close-paren must be escaped with a preceding backslash.
 func escapePDFString(s string) string {
-	// For now, simple implementation - just handle basic escaping
-	// TODO: Implement full PDF string escaping (parentheses, backslash, etc.)
-	return s
+	r := strings.NewReplacer(
+		`\`, `\\`,
+		`(`, `\(`,
+		`)`, `\)`,
+	)
+	return r.Replace(s)
 }
 
 // formatPDFDate formats a time.Time as a PDF date string.

@@ -269,6 +269,10 @@ func (w *PdfWriter) createPageWithContent(
 		gsObjs := w.createExtGStateObjects(resources)
 		fontObjs = append(fontObjs, gsObjs...)
 
+		// Create Shading objects for gradient fills.
+		shadingObjs := w.createShadingObjects(resources)
+		fontObjs = append(fontObjs, shadingObjs...)
+
 		// Write resources dictionary
 		pageDict.WriteString(" /Resources ")
 		pageDict.Write(resources.Bytes())
@@ -410,6 +414,10 @@ func (w *PdfWriter) createPageWithAllContent(
 		// STEP 3.6: Create ExtGState objects for opacity and assign object numbers.
 		gsObjs := w.createExtGStateObjects(resources)
 		fontObjs = append(fontObjs, gsObjs...)
+
+		// STEP 3.7: Create Shading objects for gradient fills.
+		shadingObjs := w.createShadingObjects(resources)
+		fontObjs = append(fontObjs, shadingObjs...)
 
 		// Write resources dictionary
 		pageDict.WriteString(" /Resources ")
@@ -643,6 +651,180 @@ func (w *PdfWriter) createSMaskObject(objNum int, img *ImageData) *IndirectObjec
 	buf.WriteString("stream\n")
 	buf.Write(img.AlphaMask)
 	buf.WriteString("\nendstream")
+
+	return NewIndirectObject(objNum, 0, buf.Bytes())
+}
+
+// createShadingObjects creates Shading PDF objects for all registered gradient resources
+// in the resource dictionary and assigns their object numbers.
+//
+// For each gradient, this creates:
+//  1. One or more Function objects (Type 2 exponential interpolation, optionally stitched with Type 3)
+//  2. A Shading dictionary referencing the function
+//
+// The Shading dictionary object number is assigned back to the resource dictionary.
+//
+// Returns the created IndirectObject slice (functions + shading dicts).
+func (w *PdfWriter) createShadingObjects(resources *ResourceDictionary) []*IndirectObject {
+	entries := resources.ShadingEntries()
+	if len(entries) == 0 {
+		return nil
+	}
+
+	objects := make([]*IndirectObject, 0, len(entries)*2)
+
+	for shName, entry := range entries {
+		grad := entry.Gradient
+		if grad == nil || len(grad.ColorStops) < 2 {
+			continue
+		}
+
+		// Create function object(s) for color interpolation.
+		funcObjs, topFuncObjNum := w.createGradientFunction(grad)
+		objects = append(objects, funcObjs...)
+
+		// Create shading dictionary referencing the function.
+		shadingObjNum := w.allocateObjNum()
+		shadingObj := w.createShadingDict(shadingObjNum, grad, topFuncObjNum)
+		objects = append(objects, shadingObj)
+
+		resources.SetShadingObjNum(shName, shadingObjNum)
+
+		logging.Logger().Debug("created Shading object",
+			"shName", shName,
+			"objNum", shadingObjNum,
+			"type", grad.Type,
+			"stops", len(grad.ColorStops),
+		)
+	}
+
+	return objects
+}
+
+// createGradientFunction creates PDF Function objects for a gradient's color interpolation.
+//
+// For 2 color stops: a single Type 2 (exponential interpolation) function.
+// For 3+ stops: N-1 Type 2 functions stitched together with a Type 3 function.
+//
+// Returns the function objects and the object number of the top-level function.
+func (w *PdfWriter) createGradientFunction(grad *GradientOp) ([]*IndirectObject, int) {
+	stops := grad.ColorStops
+
+	if len(stops) == 2 {
+		// Simple case: single Type 2 function.
+		objNum := w.allocateObjNum()
+		c0 := stops[0].Color
+		c1 := stops[1].Color
+
+		var buf bytes.Buffer
+		buf.WriteString("<< /FunctionType 2 /Domain [0 1]")
+		buf.WriteString(fmt.Sprintf(" /C0 [%.4f %.4f %.4f]", c0.R, c0.G, c0.B))
+		buf.WriteString(fmt.Sprintf(" /C1 [%.4f %.4f %.4f]", c1.R, c1.G, c1.B))
+		buf.WriteString(" /N 1 >>")
+
+		return []*IndirectObject{NewIndirectObject(objNum, 0, buf.Bytes())}, objNum
+	}
+
+	// Multi-stop: create N-1 Type 2 functions, then a Type 3 stitching function.
+	segFuncs := make([]*IndirectObject, 0, len(stops)-1)
+	segRefs := make([]int, 0, len(stops)-1)
+
+	for i := 0; i < len(stops)-1; i++ {
+		objNum := w.allocateObjNum()
+		c0 := stops[i].Color
+		c1 := stops[i+1].Color
+
+		var buf bytes.Buffer
+		buf.WriteString("<< /FunctionType 2 /Domain [0 1]")
+		buf.WriteString(fmt.Sprintf(" /C0 [%.4f %.4f %.4f]", c0.R, c0.G, c0.B))
+		buf.WriteString(fmt.Sprintf(" /C1 [%.4f %.4f %.4f]", c1.R, c1.G, c1.B))
+		buf.WriteString(" /N 1 >>")
+
+		segFuncs = append(segFuncs, NewIndirectObject(objNum, 0, buf.Bytes()))
+		segRefs = append(segRefs, objNum)
+	}
+
+	// Type 3 stitching function.
+	stitchObjNum := w.allocateObjNum()
+	var stitchBuf bytes.Buffer
+	stitchBuf.WriteString("<< /FunctionType 3 /Domain [0 1]")
+
+	// /Functions array
+	stitchBuf.WriteString(" /Functions [")
+	for i, ref := range segRefs {
+		if i > 0 {
+			stitchBuf.WriteString(" ")
+		}
+		stitchBuf.WriteString(fmt.Sprintf("%d 0 R", ref))
+	}
+	stitchBuf.WriteString("]")
+
+	// /Bounds array (inner boundaries between segments)
+	stitchBuf.WriteString(" /Bounds [")
+	for i := 1; i < len(stops)-1; i++ {
+		if i > 1 {
+			stitchBuf.WriteString(" ")
+		}
+		stitchBuf.WriteString(fmt.Sprintf("%.4f", stops[i].Position))
+	}
+	stitchBuf.WriteString("]")
+
+	// /Encode array (each segment maps [0 1])
+	stitchBuf.WriteString(" /Encode [")
+	for i := 0; i < len(stops)-1; i++ {
+		if i > 0 {
+			stitchBuf.WriteString(" ")
+		}
+		stitchBuf.WriteString("0 1")
+	}
+	stitchBuf.WriteString("]")
+
+	stitchBuf.WriteString(" >>")
+
+	allObjs := append(segFuncs, NewIndirectObject(stitchObjNum, 0, stitchBuf.Bytes()))
+	return allObjs, stitchObjNum
+}
+
+// createShadingDict creates a PDF Shading dictionary object.
+//
+// Linear (ShadingType 2):
+//
+//	<< /ShadingType 2 /ColorSpace /DeviceRGB /Coords [x1 y1 x2 y2]
+//	   /Function N 0 R /Extend [true true] >>
+//
+// Radial (ShadingType 3):
+//
+//	<< /ShadingType 3 /ColorSpace /DeviceRGB /Coords [x0 y0 r0 x1 y1 r1]
+//	   /Function N 0 R /Extend [true true] >>
+func (w *PdfWriter) createShadingDict(objNum int, grad *GradientOp, funcObjNum int) *IndirectObject {
+	var buf bytes.Buffer
+
+	buf.WriteString(fmt.Sprintf("<< /ShadingType %d", int(grad.Type)))
+	buf.WriteString(" /ColorSpace /DeviceRGB")
+
+	switch grad.Type {
+	case GradientTypeLinear:
+		buf.WriteString(fmt.Sprintf(" /Coords [%.2f %.2f %.2f %.2f]",
+			grad.X1, grad.Y1, grad.X2, grad.Y2))
+	case GradientTypeRadial:
+		buf.WriteString(fmt.Sprintf(" /Coords [%.2f %.2f %.2f %.2f %.2f %.2f]",
+			grad.X0, grad.Y0, grad.R0, grad.X1, grad.Y1, grad.R1))
+	}
+
+	buf.WriteString(fmt.Sprintf(" /Function %d 0 R", funcObjNum))
+
+	// Extend flags
+	extStart := "false"
+	extEnd := "false"
+	if grad.ExtendStart {
+		extStart = "true"
+	}
+	if grad.ExtendEnd {
+		extEnd = "true"
+	}
+	buf.WriteString(fmt.Sprintf(" /Extend [%s %s]", extStart, extEnd))
+
+	buf.WriteString(" >>")
 
 	return NewIndirectObject(objNum, 0, buf.Bytes())
 }

@@ -97,6 +97,21 @@ Page sizes, custom dimensions, landscape orientation, and text rotation:
 - `AddTextRotated` / `AddTextColorRotated` — standard 14 + custom TTF/OTF fonts
 - Angle normalization to [0, 360)
 
+### v0.5.1
+
+**Released**: February 2026
+
+Gradient rendering and ExtGState fix:
+
+#### Full Gradient Rendering (#57)
+- Real PDF Shading dictionaries replace solid-color stub
+- ShadingType 2 (axial) for linear gradients, ShadingType 3 (radial) for radial
+- Multi-stop support via Type 3 stitching functions
+- Clip+Shade technique on all shape types
+
+#### ExtGState Object Creation Fix (#46, #47)
+- Shape and text opacity now produce valid PDF output
+
 ## Current Development
 
 ### v0.5.0 "Opacity & Bezier"
@@ -201,6 +216,7 @@ Page sizes, custom dimensions, landscape orientation, and text rotation:
 | Shape Opacity | Done | v0.5.0 |
 | Quadratic Bezier Curves | Done | v0.5.0 |
 | Text Opacity | Done | v0.5.0 |
+| Gradient Rendering (PDF Shading) | Done | v0.5.1 |
 | Encrypted PDF Reading | Done | v0.6.0 |
 | Digital Signatures | Planned | v0.6.0 |
 | Fluent Text API | Planned | v0.6.0 |
@@ -217,6 +233,7 @@ Page sizes, custom dimensions, landscape orientation, and text rotation:
 | fix-006 | Shape Opacity | **P1** | **Done** | Pipeline gap fix (#47) |
 | feat-074 | Quadratic Bezier | **P2** | **Done** | Degree elevation to cubic (#45) |
 | feat-075 | Text Opacity | **P2** | **Done** | ExtGState transparency (#46) |
+| feat-078 | Gradient Rendering | **P1** | **Done** | Full PDF Shading (Type 2/3) for gradients (#57) |
 | feat-042 | Encrypted PDF Reading | **P1** | **Done** | RC4/AES-128 with password support |
 | feat-037 | Digital Signatures | **P2** | Backlog | Sign and verify PDFs |
 | feat-062 | Fluent Text API | P3 | Backlog | Chainable text methods |

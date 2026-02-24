@@ -367,6 +367,37 @@ func TestContentStreamWriter_GraphicsStateOperators(t *testing.T) {
 	}
 }
 
+// TestContentStreamWriter_ApplyShading tests the sh operator.
+func TestContentStreamWriter_ApplyShading(t *testing.T) {
+	csw := NewContentStreamWriter()
+	csw.ApplyShading("Sh1")
+
+	got := csw.String()
+	expected := "/Sh1 sh\n"
+	if got != expected {
+		t.Errorf("ApplyShading output = %q, want %q", got, expected)
+	}
+}
+
+// TestContentStreamWriter_ClipAndShade tests the clip+shade pattern for gradient fills.
+func TestContentStreamWriter_ClipAndShade(t *testing.T) {
+	csw := NewContentStreamWriter()
+
+	csw.SaveState()
+	csw.Rectangle(50, 620, 200, 60)
+	csw.Clip()
+	csw.EndPath()
+	csw.ApplyShading("Sh1")
+	csw.RestoreState()
+
+	got := csw.String()
+	for _, op := range []string{"q\n", "50.00 620.00 200.00 60.00 re\n", "W\n", "n\n", "/Sh1 sh\n", "Q\n"} {
+		if !strings.Contains(got, op) {
+			t.Errorf("Clip+shade pattern missing %q\nGot:\n%s", op, got)
+		}
+	}
+}
+
 // TestContentStreamWriter_CombinedOperations tests complex combined operations.
 func TestContentStreamWriter_CombinedOperations(t *testing.T) {
 	tests := []struct {
