@@ -330,8 +330,8 @@ Look for [`good first issue`](https://github.com/coregx/gxpdf/labels/good%20firs
 
 ### Areas That Need Help
 
-- Encrypted PDF reading (v0.6.0)
 - Digital signatures (v0.6.0)
+- AES-256 encrypted PDF reading (V=5/R=6)
 - PDF/A compliance
 - Performance optimization
 - Documentation and examples

@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/coregx/gxpdf/internal/encoding"
+	"github.com/coregx/gxpdf/internal/security"
 	"github.com/coregx/gxpdf/logging"
 )
 
@@ -76,6 +77,14 @@ type Reader struct {
 
 	// File access mutex (for seek and read operations)
 	fileMu sync.Mutex
+
+	// decryptor handles per-object decryption for encrypted PDFs.
+	// nil for unencrypted PDFs.
+	decryptor security.Decryptor
+
+	// encryptObjNum is the object number of the /Encrypt dictionary itself.
+	// This object must NOT be decrypted.
+	encryptObjNum int
 }
 
 // NewReader creates a new PDF document reader.
@@ -92,18 +101,28 @@ func NewReader(filename string) *Reader {
 
 // Open opens the PDF file and parses its structure.
 //
+// For encrypted PDFs with an empty user password (the most common case for
+// "permissions-only" encryption), Open will transparently decrypt the document.
+// For PDFs requiring a non-empty password, use OpenWithPassword.
+//
 // Steps performed:
 //  1. Open file
 //  2. Read and validate PDF header
 //  3. Find startxref offset
 //  4. Parse cross-reference table and trailer
-//  5. Load document catalog
-//  6. Load page tree root
+//  5. Initialize decryption (if encrypted)
+//  6. Load document catalog
+//  7. Load page tree root
 //
 // Returns error if file cannot be opened or is not a valid PDF.
 //
 // Reference: PDF 1.7 specification, Section 7.5 (File Structure).
 func (r *Reader) Open() error {
+	return r.openWithPassword("")
+}
+
+// openWithPassword opens the PDF file and initializes decryption with the given password.
+func (r *Reader) openWithPassword(password string) error {
 	// Open file
 	file, err := os.Open(r.filename)
 	if err != nil {
@@ -131,6 +150,12 @@ func (r *Reader) Open() error {
 	if err := r.parseXRefAndTrailer(startxrefOffset); err != nil {
 		_ = r.Close()
 		return fmt.Errorf("failed to parse xref table: %w", err)
+	}
+
+	// Initialize decryption if the PDF is encrypted
+	if err := r.initDecryption(password); err != nil {
+		_ = r.Close()
+		return fmt.Errorf("encrypted PDF: %w", err)
 	}
 
 	// Load catalog
@@ -674,6 +699,11 @@ func (r *Reader) getInUseObject(objectNum int, entry *XRefEntry) (PdfObject, err
 	// Get the object (do NOT auto-resolve references to avoid circular refs)
 	obj := indirectObj.Object
 
+	// Decrypt the object if the PDF is encrypted (skip the /Encrypt dict itself)
+	if r.decryptor != nil && indirectObj.Number != r.encryptObjNum {
+		obj = r.decryptParsedObject(obj, indirectObj.Number, indirectObj.Generation)
+	}
+
 	// Cache the object (write lock)
 	r.mu.Lock()
 	r.objectCache[objectNum] = obj
@@ -858,6 +888,15 @@ func (r *Reader) getCompressedObject(objectNum int, entry *XRefEntry) (PdfObject
 	}
 	if firstOffset < 0 {
 		return nil, fmt.Errorf("ObjStm %d has invalid /First: %d", objStmNum, firstOffset)
+	}
+
+	// Decrypt the ObjStm stream before decoding (individual objects inside are NOT encrypted per spec)
+	if r.decryptor != nil {
+		decrypted, err := r.decryptor.DecryptStream(stream.Content(), objStmNum, 0)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decrypt ObjStm %d: %w", objStmNum, err)
+		}
+		stream.SetContent(decrypted)
 	}
 
 	// Decode the stream
@@ -1398,4 +1437,221 @@ func (r *Reader) String() string {
 	fmt.Fprintf(&buf, "}")
 
 	return buf.String()
+}
+
+// initDecryption checks if the PDF is encrypted and initializes the decryptor.
+//
+// If the trailer has an /Encrypt entry, this method:
+//  1. Records the /Encrypt object number (to skip decrypting it)
+//  2. Parses the /Encrypt dictionary for V, R, P, O, U, CFM, Length
+//  3. Extracts the FileID from the trailer /ID array
+//  4. Builds an EncryptionInfo and calls security.NewDecryptor
+//
+// For unencrypted PDFs, this is a no-op.
+func (r *Reader) initDecryption(password string) error {
+	if r.trailer == nil {
+		return nil
+	}
+
+	encryptRef := r.trailer.Get("Encrypt")
+	if encryptRef == nil {
+		return nil // Not encrypted
+	}
+
+	// Record the /Encrypt object number so we skip decrypting it
+	if ref, ok := encryptRef.(*IndirectReference); ok {
+		r.encryptObjNum = ref.Number
+	}
+
+	// Resolve /Encrypt to get the dictionary
+	encryptDict, err := r.resolveDictionary(encryptRef)
+	if err != nil {
+		return fmt.Errorf("resolve /Encrypt: %w", err)
+	}
+
+	// Extract encryption parameters
+	info := &security.EncryptionInfo{
+		Filter: "Standard",
+		V:      int(encryptDict.GetInteger("V")),
+		R:      int(encryptDict.GetInteger("R")),
+		Length: int(encryptDict.GetInteger("Length")),
+		P:      int32(encryptDict.GetInteger("P")),
+	}
+
+	// Default key length
+	if info.Length == 0 {
+		if info.V == 1 {
+			info.Length = 40
+		} else {
+			info.Length = 128
+		}
+	}
+
+	// Extract O and U (owner and user password hashes)
+	if oStr, ok := encryptDict.Get("O").(*String); ok {
+		info.O = oStr.Bytes()
+	}
+	if uStr, ok := encryptDict.Get("U").(*String); ok {
+		info.U = uStr.Bytes()
+	}
+
+	// Extract CFM from crypt filter if V=4
+	if info.V == 4 {
+		info.CFM = r.extractCFM(encryptDict)
+	}
+
+	// Extract FileID from trailer /ID array
+	info.FileID = r.extractFileID()
+
+	// Create decryptor (verifies password)
+	decryptor, err := security.NewDecryptor(info, password)
+	if err != nil {
+		return err
+	}
+
+	r.decryptor = decryptor
+	return nil
+}
+
+// extractCFM extracts the crypt filter method from the /Encrypt dictionary.
+//
+// For V=4, the CFM is in /CF -> /StdCF -> /CFM.
+// Falls back to checking /StmF and /StrF names.
+func (r *Reader) extractCFM(encryptDict *Dictionary) string {
+	// Try /CF -> /StdCF -> /CFM
+	cfObj := encryptDict.Get("CF")
+	if cfObj != nil {
+		cfObj = r.resolveReferences(cfObj)
+		if cfDict, ok := cfObj.(*Dictionary); ok {
+			stdCFObj := cfDict.Get("StdCF")
+			if stdCFObj != nil {
+				stdCFObj = r.resolveReferences(stdCFObj)
+				if stdCFDict, ok := stdCFObj.(*Dictionary); ok {
+					if cfmName := stdCFDict.GetName("CFM"); cfmName != nil {
+						return cfmName.Value()
+					}
+				}
+			}
+		}
+	}
+
+	// Fallback: check /StmF or /StrF — if they reference "StdCF" and V=4, assume AESV2
+	if stmF := encryptDict.GetName("StmF"); stmF != nil && stmF.Value() == "StdCF" {
+		// V=4 with StdCF typically means AESV2
+		return "AESV2"
+	}
+
+	return ""
+}
+
+// extractFileID extracts the first element of the trailer /ID array as bytes.
+func (r *Reader) extractFileID() []byte {
+	idObj := r.trailer.Get("ID")
+	if idObj == nil {
+		return nil
+	}
+
+	// Resolve if indirect
+	idObj = r.resolveReferences(idObj)
+
+	idArray, ok := idObj.(*Array)
+	if !ok || idArray.Len() == 0 {
+		return nil
+	}
+
+	firstID := idArray.Get(0)
+	if firstID == nil {
+		return nil
+	}
+
+	// Resolve if indirect
+	firstID = r.resolveReferences(firstID)
+
+	if s, ok := firstID.(*String); ok {
+		return s.Bytes()
+	}
+
+	return nil
+}
+
+// decryptParsedObject recursively decrypts strings and streams within a parsed object.
+//
+// Per PDF spec, only String and Stream objects are encrypted. Dictionaries
+// and Arrays are walked recursively to find encrypted children.
+// Names, Integers, Booleans, etc. are never encrypted.
+func (r *Reader) decryptParsedObject(obj PdfObject, objNum, genNum int) PdfObject {
+	switch o := obj.(type) {
+	case *String:
+		decrypted, err := r.decryptor.DecryptString(o.Bytes(), objNum, genNum)
+		if err != nil {
+			logging.Logger().Debug("failed to decrypt string",
+				slog.Int("obj", objNum),
+				slog.String("error", err.Error()))
+			return o // Return original on error
+		}
+		return NewStringBytes(decrypted)
+
+	case *Stream:
+		// Decrypt stream content
+		decrypted, err := r.decryptor.DecryptStream(o.Content(), objNum, genNum)
+		if err != nil {
+			logging.Logger().Debug("failed to decrypt stream",
+				slog.Int("obj", objNum),
+				slog.String("error", err.Error()))
+			return o // Return original on error
+		}
+		o.SetContent(decrypted)
+
+		// Also decrypt strings within the stream dictionary
+		dict := o.Dictionary()
+		for _, key := range dict.Keys() {
+			value := dict.Get(key)
+			if value != nil {
+				dict.Set(key, r.decryptParsedObject(value, objNum, genNum))
+			}
+		}
+		return o
+
+	case *Dictionary:
+		for _, key := range o.Keys() {
+			value := o.Get(key)
+			if value != nil {
+				o.Set(key, r.decryptParsedObject(value, objNum, genNum))
+			}
+		}
+		return o
+
+	case *Array:
+		for i := 0; i < o.Len(); i++ {
+			elem := o.Get(i)
+			if elem != nil {
+				_ = o.Set(i, r.decryptParsedObject(elem, objNum, genNum))
+			}
+		}
+		return o
+
+	default:
+		return obj
+	}
+}
+
+// OpenPDFWithPassword is a convenience function that creates a Reader and opens
+// an encrypted PDF with the given password.
+//
+// For PDFs with an empty user password (permissions-only encryption),
+// use OpenPDF instead — it handles empty passwords transparently.
+//
+// Example:
+//
+//	reader, err := parser.OpenPDFWithPassword("encrypted.pdf", "secret")
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	defer reader.Close()
+func OpenPDFWithPassword(filename, password string) (*Reader, error) {
+	reader := NewReader(filename)
+	if err := reader.openWithPassword(password); err != nil {
+		return nil, err
+	}
+	return reader, nil
 }

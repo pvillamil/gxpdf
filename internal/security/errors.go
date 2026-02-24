@@ -12,6 +12,9 @@ var (
 	// ErrInvalidPassword is returned when password verification fails.
 	ErrInvalidPassword = errors.New("invalid password")
 
+	// ErrPasswordRequired is returned when a password is needed to open an encrypted PDF.
+	ErrPasswordRequired = errors.New("password required for encrypted PDF")
+
 	// ErrUnsupportedVersion is returned when encryption version is not supported.
 	ErrUnsupportedVersion = errors.New("unsupported encryption version")
 
