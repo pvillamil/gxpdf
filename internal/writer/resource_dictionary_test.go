@@ -316,3 +316,111 @@ func TestResourceDictionary_ObjectNumbers(t *testing.T) {
 		}
 	}
 }
+
+func TestResourceDictionary_AddShading(t *testing.T) {
+	rd := NewResourceDictionary()
+
+	grad := &GradientOp{
+		Type: GradientTypeLinear,
+		X1:   0, Y1: 0, X2: 100, Y2: 0,
+		ColorStops: []ColorStopOp{
+			{Position: 0, Color: RGB{R: 1, G: 0, B: 0}},
+			{Position: 1, Color: RGB{R: 0, G: 0, B: 1}},
+		},
+	}
+
+	name := rd.AddShading(grad)
+	if name != "Sh1" {
+		t.Errorf("AddShading() = %q, want %q", name, "Sh1")
+	}
+
+	// Verify HasResources.
+	if !rd.HasResources() {
+		t.Error("HasResources() = false, want true after adding Shading")
+	}
+
+	// Verify Bytes includes /Shading section with placeholder object number.
+	got := rd.String()
+	if !strings.Contains(got, "/Shading <<") {
+		t.Errorf("String() should contain /Shading section, got %q", got)
+	}
+	if !strings.Contains(got, "/Sh1 0 0 R") {
+		t.Errorf("String() should contain /Sh1 0 0 R (placeholder), got %q", got)
+	}
+}
+
+func TestResourceDictionary_SetShadingObjNum(t *testing.T) {
+	rd := NewResourceDictionary()
+
+	grad := &GradientOp{
+		Type: GradientTypeLinear,
+		ColorStops: []ColorStopOp{
+			{Position: 0, Color: RGB{R: 1, G: 0, B: 0}},
+			{Position: 1, Color: RGB{R: 0, G: 0, B: 1}},
+		},
+	}
+
+	name := rd.AddShading(grad)
+
+	// Set real object number.
+	ok := rd.SetShadingObjNum(name, 42)
+	if !ok {
+		t.Error("SetShadingObjNum() = false, want true")
+	}
+
+	got := rd.String()
+	if !strings.Contains(got, "/Sh1 42 0 R") {
+		t.Errorf("String() should contain /Sh1 42 0 R, got %q", got)
+	}
+
+	// Non-existent name returns false.
+	ok = rd.SetShadingObjNum("ShXXX", 99)
+	if ok {
+		t.Error("SetShadingObjNum(non-existent) = true, want false")
+	}
+}
+
+func TestResourceDictionary_ShadingEntries(t *testing.T) {
+	rd := NewResourceDictionary()
+
+	grad1 := &GradientOp{Type: GradientTypeLinear}
+	grad2 := &GradientOp{Type: GradientTypeRadial}
+
+	rd.AddShading(grad1)
+	rd.AddShading(grad2)
+
+	entries := rd.ShadingEntries()
+	if len(entries) != 2 {
+		t.Errorf("ShadingEntries() returned %d entries, want 2", len(entries))
+	}
+
+	// Verify entries contain the correct gradient types.
+	if e, ok := entries["Sh1"]; !ok || e.Gradient.Type != GradientTypeLinear {
+		t.Error("Sh1 entry missing or wrong type")
+	}
+	if e, ok := entries["Sh2"]; !ok || e.Gradient.Type != GradientTypeRadial {
+		t.Error("Sh2 entry missing or wrong type")
+	}
+}
+
+func TestResourceDictionary_CombinedWithShading(t *testing.T) {
+	rd := NewResourceDictionary()
+
+	rd.AddFont(5)
+	rd.AddImage(10)
+	rd.AddExtGState(15)
+	name := rd.AddShading(&GradientOp{Type: GradientTypeLinear})
+	rd.SetShadingObjNum(name, 20)
+
+	got := rd.String()
+
+	// Verify all sections present in correct order.
+	for _, section := range []string{"/Font <<", "/XObject <<", "/ExtGState <<", "/Shading <<"} {
+		if !strings.Contains(got, section) {
+			t.Errorf("String() missing section %q\ngot: %q", section, got)
+		}
+	}
+	if !strings.Contains(got, "/Sh1 20 0 R") {
+		t.Errorf("String() missing shading reference, got %q", got)
+	}
+}

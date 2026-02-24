@@ -64,7 +64,7 @@ c.WriteToFile("output.pdf")
 **Features**:
 - Text rendering with Standard 14 fonts
 - Graphics (lines, rectangles, circles, polygons, Bézier curves)
-- Linear and radial gradients
+- Linear and radial gradients (PDF Shading Type 2/3 with multi-stop support)
 - JPEG/PNG image embedding
 - Tables with merged cells
 - Chapters with auto-generated TOC

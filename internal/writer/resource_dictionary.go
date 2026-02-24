@@ -7,6 +7,14 @@ import (
 	"sort"
 )
 
+// ShadingEntry holds the gradient parameters for a registered shading resource.
+//
+// This is used by the writer to create the actual Shading PDF objects after
+// content stream generation, following the same deferred-creation pattern as ExtGState.
+type ShadingEntry struct {
+	Gradient *GradientOp
+}
+
 // ResourceDictionary manages PDF page resources (fonts, images, graphics states, etc.).
 //
 // Resources are referenced in content streams by name (e.g., /F1 for fonts, /Im1 for images).
@@ -18,17 +26,20 @@ import (
 //	  /Font << /F1 5 0 R /F2 6 0 R >>
 //	  /XObject << /Im1 7 0 R >>
 //	  /ExtGState << /GS1 8 0 R >>
+//	  /Shading << /Sh1 9 0 R >>
 //	  /ProcSet [/PDF /Text /ImageB /ImageC /ImageI]
 //	>>
 //
 // Thread Safety: Not thread-safe. Caller must synchronize if needed.
 type ResourceDictionary struct {
-	fonts           map[string]int     // Font resource name -> object number (e.g., "F1" -> 5)
-	fontIDs         map[string]string  // Font ID -> resource name (e.g., "custom:font_1" -> "F1")
-	xobjects        map[string]int     // XObject resource name -> object number (e.g., "Im1" -> 10)
-	extgstates      map[string]int     // ExtGState resource name -> object number (e.g., "GS1" -> 15)
-	extgstateCache  map[float64]string // Opacity -> ExtGState name (for caching, e.g., 0.5 -> "GS1")
-	extgstateObjMap map[string]int     // ExtGState name -> object number (for later setting)
+	fonts           map[string]int           // Font resource name -> object number (e.g., "F1" -> 5)
+	fontIDs         map[string]string        // Font ID -> resource name (e.g., "custom:font_1" -> "F1")
+	xobjects        map[string]int           // XObject resource name -> object number (e.g., "Im1" -> 10)
+	extgstates      map[string]int           // ExtGState resource name -> object number (e.g., "GS1" -> 15)
+	extgstateCache  map[float64]string       // Opacity -> ExtGState name (for caching, e.g., 0.5 -> "GS1")
+	extgstateObjMap map[string]int           // ExtGState name -> object number (for later setting)
+	shadings        map[string]int           // Shading resource name -> object number (e.g., "Sh1" -> 20)
+	shadingParams   map[string]*ShadingEntry // Shading name -> gradient parameters
 }
 
 // NewResourceDictionary creates a new empty resource dictionary.
@@ -40,6 +51,8 @@ func NewResourceDictionary() *ResourceDictionary {
 		extgstates:      make(map[string]int),
 		extgstateCache:  make(map[float64]string),
 		extgstateObjMap: make(map[string]int),
+		shadings:        make(map[string]int),
+		shadingParams:   make(map[string]*ShadingEntry),
 	}
 }
 
@@ -272,11 +285,59 @@ func (rd *ResourceDictionary) ExtGStateEntries() map[string]float64 {
 	return result
 }
 
+// AddShading registers a shading resource for a gradient and returns its resource name.
+//
+// Shadings are named sequentially: Sh1, Sh2, Sh3, etc.
+// The object number is initially set to 0 (placeholder) and must be updated
+// via SetShadingObjNum after the actual Shading PDF object is created.
+//
+// Parameters:
+//   - grad: The gradient operation describing the shading
+//
+// Returns:
+//   - Resource name (e.g., "Sh1")
+func (rd *ResourceDictionary) AddShading(grad *GradientOp) string {
+	name := fmt.Sprintf("Sh%d", len(rd.shadings)+1)
+	rd.shadings[name] = 0 // Placeholder, set later via SetShadingObjNum
+	rd.shadingParams[name] = &ShadingEntry{Gradient: grad}
+	return name
+}
+
+// SetShadingObjNum sets the object number for a Shading resource.
+//
+// This is called after the Shading PDF object has been created.
+//
+// Parameters:
+//   - name: Shading resource name (e.g., "Sh1")
+//   - objNum: PDF object number
+//
+// Returns:
+//   - true if the Shading was found and updated, false otherwise
+func (rd *ResourceDictionary) SetShadingObjNum(name string, objNum int) bool {
+	if _, exists := rd.shadings[name]; !exists {
+		return false
+	}
+	rd.shadings[name] = objNum
+	return true
+}
+
+// ShadingEntries returns a map of Shading resource name to ShadingEntry.
+//
+// This is used by the writer to create actual Shading PDF objects for each
+// registered gradient. Returns an empty map if no shading entries are registered.
+func (rd *ResourceDictionary) ShadingEntries() map[string]*ShadingEntry {
+	result := make(map[string]*ShadingEntry, len(rd.shadingParams))
+	for name, entry := range rd.shadingParams {
+		result[name] = entry
+	}
+	return result
+}
+
 // HasResources returns true if any resources are registered.
 //
 // Use this to check if the resource dictionary is empty before writing.
 func (rd *ResourceDictionary) HasResources() bool {
-	return len(rd.fonts) > 0 || len(rd.xobjects) > 0 || len(rd.extgstates) > 0
+	return len(rd.fonts) > 0 || len(rd.xobjects) > 0 || len(rd.extgstates) > 0 || len(rd.shadings) > 0
 }
 
 // Bytes returns the resource dictionary as PDF bytes.
@@ -312,6 +373,13 @@ func (rd *ResourceDictionary) Bytes() []byte {
 	if len(rd.extgstates) > 0 {
 		buf.WriteString(" /ExtGState <<")
 		rd.writeSortedResources(&buf, rd.extgstates)
+		buf.WriteString(" >>")
+	}
+
+	// Shading resources (gradients).
+	if len(rd.shadings) > 0 {
+		buf.WriteString(" /Shading <<")
+		rd.writeSortedResources(&buf, rd.shadings)
 		buf.WriteString(" >>")
 	}
 

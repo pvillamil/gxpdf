@@ -17,7 +17,7 @@
 ### PDF Creation (Creator API)
 - **Text & Typography** - Rich text with multiple fonts, styles, and colors
 - **Graphics** - Lines, rectangles, circles, polygons, ellipses, cubic and quadratic Bezier curves
-- **Gradients** - Linear and radial gradient fills
+- **Gradients** - Linear and radial gradient fills with full PDF Shading (multi-stop support)
 - **Color Spaces** - RGB and CMYK support
 - **Tables** - Complex tables with merged cells, borders, backgrounds
 - **Images** - JPEG and PNG with transparency support

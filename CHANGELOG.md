@@ -5,14 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.5.1] - 2026-02-23
+## [0.6.0] - 2026-02-25
+
+### Added
+- **Encrypted PDF Reading** - Open password-protected PDFs transparently (#34)
+  - Standard Security Handler: RC4-40 (V=1/R=2), RC4-128 (V=2/R=3), AES-128 (V=4/R=4/AESV2)
+  - `OpenWithPassword()` for PDFs with non-empty user passwords
+  - `Open()` transparently handles empty-password encrypted PDFs (permissions-only)
+  - Key derivation (Algorithm 2), password verification (Algorithm 6)
+  - Per-object stream/string decryption before decompression
+  - `ErrPasswordRequired` sentinel error for wrong/missing password
+- **Full Gradient Rendering** - Linear and radial gradients now render as real color transitions (#57)
+  - Replaces Phase 1 solid-color stub with full PDF Shading dictionaries
+  - ShadingType 2 (axial) for linear gradients, ShadingType 3 (radial) for radial gradients
+  - Multi-stop support via Type 3 stitching functions (Type 2 exponential for 2-stop)
+  - Clip+Shade technique: path → `W n` (clip) → `/ShN sh` (shade within clip)
+  - Works on all shape types: rectangles, circles, ellipses, polygons, Bezier curves
+  - `/Extend [true true]` for color continuation beyond gradient bounds
 
 ### Fixed
 - **ExtGState Object Creation** - Shape and text opacity now produce valid PDF output (#46, #47)
   - Root cause: ExtGState entries were registered in resource dictionary with placeholder object number `0`, but actual PDF indirect objects were never created — `/GS1 0 0 R` pointed to xref free entry
   - Fix adds STEP 3.6 in writer pipeline: `createExtGStateObjects()` materializes `<< /Type /ExtGState /ca {opacity} /CA {opacity} >>` dictionaries with real object numbers
   - Both page creation paths fixed: text-only (`createPageWithContent`) and graphics+text (`createPageWithAllContent`)
-  - Added slog debug logging for ExtGState object creation
 
 ---
 
@@ -180,8 +195,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## Planned (v0.6.0+)
-- Encrypted PDF reading (AES-128, RC4-128, user password)
+## Planned (v0.7.0+)
 - Digital signatures (sign and verify)
 - PDF/A compliance
 
@@ -290,7 +304,7 @@ Initial public release of GxPDF - a modern, enterprise-grade PDF library for Go.
 
 ---
 
-[0.5.1]: https://github.com/coregx/gxpdf/compare/v0.5.0...v0.5.1
+[0.6.0]: https://github.com/coregx/gxpdf/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/coregx/gxpdf/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/coregx/gxpdf/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/coregx/gxpdf/compare/v0.2.1...v0.3.0

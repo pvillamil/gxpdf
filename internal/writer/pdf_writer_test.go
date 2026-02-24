@@ -430,11 +430,102 @@ func TestPdfWriter_MetadataInTrailer(t *testing.T) {
 
 	contentStr := string(content)
 
-	// Metadata is written in Info dictionary referenced from trailer
-	// The trailer should contain /Info reference if metadata exists
-	if strings.Contains(contentStr, "Test Title") {
-		// If title is in file, check for proper Info dictionary structure
-		t.Log("Metadata found in file (Info dictionary)")
+	// Info dictionary MUST be present as an indirect object in the PDF body
+	if !strings.Contains(contentStr, "/Title (Test Title)") {
+		t.Error("PDF does not contain /Title in Info dictionary")
+	}
+	if !strings.Contains(contentStr, "/Author (Test Author)") {
+		t.Error("PDF does not contain /Author in Info dictionary")
+	}
+	if !strings.Contains(contentStr, "/Subject (Test Subject)") {
+		t.Error("PDF does not contain /Subject in Info dictionary")
+	}
+
+	// Trailer MUST reference Info dictionary with valid object number
+	if !strings.Contains(contentStr, "/Info ") {
+		t.Error("trailer does not contain /Info reference")
+	}
+
+	// Info object reference must NOT point to object 0 (free entry)
+	if strings.Contains(contentStr, "/Info 0 0 R") {
+		t.Error("/Info references object 0 — object was never created")
+	}
+
+	// CreationDate and ModDate must be present
+	if !strings.Contains(contentStr, "/CreationDate (D:") {
+		t.Error("Info dictionary missing /CreationDate")
+	}
+	if !strings.Contains(contentStr, "/ModDate (D:") {
+		t.Error("Info dictionary missing /ModDate")
+	}
+}
+
+func TestPdfWriter_MetadataNotWrittenWhenEmpty(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "no_metadata.pdf")
+
+	doc := document.NewDocument()
+	doc.AddPage(document.A4)
+
+	writer, err := NewPdfWriter(path)
+	if err != nil {
+		t.Fatalf("NewPdfWriter() error = %v", err)
+	}
+	defer writer.Close()
+
+	err = writer.Write(doc)
+	if err != nil {
+		t.Fatalf("Write() error = %v", err)
+	}
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("failed to read file: %v", err)
+	}
+
+	contentStr := string(content)
+
+	// No metadata → no /Info in trailer
+	if strings.Contains(contentStr, "/Info ") {
+		t.Error("trailer contains /Info but no metadata was set")
+	}
+}
+
+func TestPdfWriter_MetadataEscaping(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "escaped.pdf")
+
+	doc := document.NewDocument()
+	doc.SetMetadata("Title (with parens)", "Author\\Name", "Sub)ject")
+	doc.AddPage(document.A4)
+
+	writer, err := NewPdfWriter(path)
+	if err != nil {
+		t.Fatalf("NewPdfWriter() error = %v", err)
+	}
+	defer writer.Close()
+
+	err = writer.Write(doc)
+	if err != nil {
+		t.Fatalf("Write() error = %v", err)
+	}
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("failed to read file: %v", err)
+	}
+
+	contentStr := string(content)
+
+	// Parentheses and backslashes must be escaped
+	if !strings.Contains(contentStr, `Title \(with parens\)`) {
+		t.Error("parentheses in title not escaped")
+	}
+	if !strings.Contains(contentStr, `Author\\Name`) {
+		t.Error("backslash in author not escaped")
+	}
+	if !strings.Contains(contentStr, `Sub\)ject`) {
+		t.Error("close-paren in subject not escaped")
 	}
 }
 

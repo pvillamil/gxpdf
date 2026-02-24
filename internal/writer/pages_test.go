@@ -408,6 +408,179 @@ func TestCreateExtGStateObjects_Empty(t *testing.T) {
 	}
 }
 
+func TestCreateShadingObjects_Linear(t *testing.T) {
+	w := &PdfWriter{
+		nextObjNum: 1,
+		objects:    make([]*IndirectObject, 0),
+		offsets:    make(map[int]int64),
+	}
+
+	resources := NewResourceDictionary()
+	grad := &GradientOp{
+		Type: GradientTypeLinear,
+		X1:   0, Y1: 0, X2: 200, Y2: 0,
+		ExtendStart: true,
+		ExtendEnd:   true,
+		ColorStops: []ColorStopOp{
+			{Position: 0, Color: RGB{R: 1, G: 0, B: 0}},
+			{Position: 1, Color: RGB{R: 0, G: 0, B: 1}},
+		},
+	}
+	shName := resources.AddShading(grad)
+
+	objects := w.createShadingObjects(resources)
+
+	// 2 stops → 1 Type 2 function + 1 Shading dict = 2 objects
+	if len(objects) != 2 {
+		t.Fatalf("expected 2 objects (function + shading), got %d", len(objects))
+	}
+
+	// Verify function object (Type 2).
+	funcData := string(objects[0].Data)
+	if !strings.Contains(funcData, "/FunctionType 2") {
+		t.Errorf("function object missing /FunctionType 2: %s", funcData)
+	}
+	if !strings.Contains(funcData, "/C0 [1.0000 0.0000 0.0000]") {
+		t.Errorf("function object missing /C0 for red: %s", funcData)
+	}
+	if !strings.Contains(funcData, "/C1 [0.0000 0.0000 1.0000]") {
+		t.Errorf("function object missing /C1 for blue: %s", funcData)
+	}
+
+	// Verify shading dict.
+	shadingData := string(objects[1].Data)
+	if !strings.Contains(shadingData, "/ShadingType 2") {
+		t.Errorf("shading dict missing /ShadingType 2: %s", shadingData)
+	}
+	if !strings.Contains(shadingData, "/ColorSpace /DeviceRGB") {
+		t.Errorf("shading dict missing /ColorSpace /DeviceRGB: %s", shadingData)
+	}
+	if !strings.Contains(shadingData, "/Coords [0.00 0.00 200.00 0.00]") {
+		t.Errorf("shading dict missing /Coords: %s", shadingData)
+	}
+	if !strings.Contains(shadingData, "/Extend [true true]") {
+		t.Errorf("shading dict missing /Extend: %s", shadingData)
+	}
+
+	// Resource dict should have real object number.
+	resStr := resources.String()
+	if strings.Contains(resStr, fmt.Sprintf("/%s 0 0 R", shName)) {
+		t.Errorf("resource dict still has placeholder for %s: %s", shName, resStr)
+	}
+}
+
+func TestCreateShadingObjects_Radial(t *testing.T) {
+	w := &PdfWriter{
+		nextObjNum: 1,
+		objects:    make([]*IndirectObject, 0),
+		offsets:    make(map[int]int64),
+	}
+
+	resources := NewResourceDictionary()
+	grad := &GradientOp{
+		Type: GradientTypeRadial,
+		X0:   100, Y0: 100, R0: 0,
+		X1: 100, Y1: 100, R1: 50,
+		ExtendStart: true,
+		ExtendEnd:   true,
+		ColorStops: []ColorStopOp{
+			{Position: 0, Color: RGB{R: 1, G: 1, B: 1}},
+			{Position: 1, Color: RGB{R: 0, G: 0, B: 1}},
+		},
+	}
+	resources.AddShading(grad)
+
+	objects := w.createShadingObjects(resources)
+	if len(objects) != 2 {
+		t.Fatalf("expected 2 objects, got %d", len(objects))
+	}
+
+	shadingData := string(objects[1].Data)
+	if !strings.Contains(shadingData, "/ShadingType 3") {
+		t.Errorf("radial shading dict missing /ShadingType 3: %s", shadingData)
+	}
+	if !strings.Contains(shadingData, "/Coords [100.00 100.00 0.00 100.00 100.00 50.00]") {
+		t.Errorf("radial shading dict missing /Coords: %s", shadingData)
+	}
+}
+
+func TestCreateShadingObjects_MultiStop(t *testing.T) {
+	w := &PdfWriter{
+		nextObjNum: 1,
+		objects:    make([]*IndirectObject, 0),
+		offsets:    make(map[int]int64),
+	}
+
+	resources := NewResourceDictionary()
+	grad := &GradientOp{
+		Type: GradientTypeLinear,
+		X1:   0, Y1: 0, X2: 300, Y2: 0,
+		ExtendStart: true,
+		ExtendEnd:   true,
+		ColorStops: []ColorStopOp{
+			{Position: 0.0, Color: RGB{R: 1, G: 0, B: 0}},   // Red
+			{Position: 0.5, Color: RGB{R: 1, G: 1, B: 0}},   // Yellow
+			{Position: 1.0, Color: RGB{R: 0, G: 0.5, B: 0}}, // Green
+		},
+	}
+	resources.AddShading(grad)
+
+	objects := w.createShadingObjects(resources)
+
+	// 3 stops → 2 Type 2 functions + 1 Type 3 stitch + 1 Shading dict = 4 objects
+	if len(objects) != 4 {
+		t.Fatalf("expected 4 objects (2 funcs + stitch + shading), got %d", len(objects))
+	}
+
+	// Verify first Type 2 function (red → yellow).
+	func0Data := string(objects[0].Data)
+	if !strings.Contains(func0Data, "/FunctionType 2") {
+		t.Errorf("first function missing /FunctionType 2: %s", func0Data)
+	}
+
+	// Verify second Type 2 function (yellow → green).
+	func1Data := string(objects[1].Data)
+	if !strings.Contains(func1Data, "/FunctionType 2") {
+		t.Errorf("second function missing /FunctionType 2: %s", func1Data)
+	}
+
+	// Verify Type 3 stitching function.
+	stitchData := string(objects[2].Data)
+	if !strings.Contains(stitchData, "/FunctionType 3") {
+		t.Errorf("stitching function missing /FunctionType 3: %s", stitchData)
+	}
+	if !strings.Contains(stitchData, "/Bounds [0.5000]") {
+		t.Errorf("stitching function missing /Bounds: %s", stitchData)
+	}
+	if !strings.Contains(stitchData, "/Encode [0 1 0 1]") {
+		t.Errorf("stitching function missing /Encode: %s", stitchData)
+	}
+
+	// Verify shading dict references the stitch function.
+	shadingData := string(objects[3].Data)
+	if !strings.Contains(shadingData, "/ShadingType 2") {
+		t.Errorf("shading dict missing /ShadingType 2: %s", shadingData)
+	}
+	stitchObjNum := objects[2].Number
+	if !strings.Contains(shadingData, fmt.Sprintf("/Function %d 0 R", stitchObjNum)) {
+		t.Errorf("shading dict should reference stitch function %d: %s", stitchObjNum, shadingData)
+	}
+}
+
+func TestCreateShadingObjects_Empty(t *testing.T) {
+	w := &PdfWriter{
+		nextObjNum: 1,
+		objects:    make([]*IndirectObject, 0),
+		offsets:    make(map[int]int64),
+	}
+
+	resources := NewResourceDictionary()
+	objects := w.createShadingObjects(resources)
+	if objects != nil {
+		t.Errorf("expected nil for empty shadings, got %d objects", len(objects))
+	}
+}
+
 func TestCreatePageTree_EmptyDocument(t *testing.T) {
 	w := &PdfWriter{
 		nextObjNum: 1,
