@@ -31,7 +31,11 @@ const (
 	// GraphicsOpBezier draws a complex curve composed of Bézier segments.
 	GraphicsOpBezier
 
-	// Reserved 9-19 for future graphics ops.
+	// GraphicsOpArc draws an elliptical arc centered at (X,Y) with radii RX and RY.
+	// StartAngle and SweepAngle define the arc span in degrees.
+	GraphicsOpArc
+
+	// Reserved 10-19 for future graphics ops.
 
 	// GraphicsOpBeginClip begins a rectangular clipping region.
 	// All subsequent drawing is clipped to the rectangle (X, Y, Width, Height).
@@ -167,6 +171,7 @@ type CircleOptions struct {
 // - GraphicsOpPolyline: Vertices, PolylineOpts.
 // - GraphicsOpEllipse: X, Y, RX, RY, EllipseOpts.
 // - GraphicsOpBezier: BezierSegs, BezierOpts.
+// - GraphicsOpArc: X, Y, RX, RY, StartAngle, SweepAngle, ArcOpts.
 type GraphicsOperation struct {
 	// Type is the graphics operation type.
 	Type GraphicsOpType
@@ -224,6 +229,15 @@ type GraphicsOperation struct {
 
 	// BezierOpts are Bézier curve options (only for bezier).
 	BezierOpts *BezierOptions
+
+	// StartAngle is the arc start angle in degrees (only for arc).
+	StartAngle float64
+
+	// SweepAngle is the arc sweep angle in degrees (only for arc).
+	SweepAngle float64
+
+	// ArcOpts are arc options (only for arc).
+	ArcOpts *ArcOptions
 
 	// Image is the image to draw (only for image).
 	Image *Image

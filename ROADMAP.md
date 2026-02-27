@@ -218,8 +218,9 @@ Gradient rendering and ExtGState fix:
 | Text Opacity | Done | v0.5.0 |
 | Gradient Rendering (PDF Shading) | Done | v0.5.1 |
 | Encrypted PDF Reading | Done | v0.6.0 |
-| Digital Signatures | Planned | v0.6.0 |
-| Fluent Text API | Planned | v0.6.0 |
+| Arc Drawing (elliptical/circular) | Done | v0.6.1 |
+| Digital Signatures | Planned | v0.7.0 |
+| Fluent Text API | Planned | v0.7.0 |
 | PDF/A Compliance | Planned | v0.7.0 |
 | PDF Render to Image | Planned | v0.8.0 |
 
@@ -235,6 +236,7 @@ Gradient rendering and ExtGState fix:
 | feat-075 | Text Opacity | **P2** | **Done** | ExtGState transparency (#46) |
 | feat-078 | Gradient Rendering | **P1** | **Done** | Full PDF Shading (Type 2/3) for gradients (#57) |
 | feat-042 | Encrypted PDF Reading | **P1** | **Done** | RC4/AES-128 with password support |
+| feat-079 | Arc Drawing | **P2** | **Done** | Elliptical/circular arcs with wedge/chord (#59) |
 | feat-037 | Digital Signatures | **P2** | Backlog | Sign and verify PDFs |
 | feat-062 | Fluent Text API | P3 | Backlog | Chainable text methods |
 | feat-063 | Paragraph | P3 | Backlog | Multi-line text container |

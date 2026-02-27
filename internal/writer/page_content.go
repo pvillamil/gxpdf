@@ -111,7 +111,7 @@ type ImageData struct {
 // This is an infrastructure-level representation of graphics operations
 // from the creator package.
 type GraphicsOp struct {
-	Type int // 0=line, 1=rect, 2=circle, 3=image, 4=watermark, 5=polygon, 6=polyline, 7=ellipse, 8=bezier
+	Type int // 0=line, 1=rect, 2=circle, 3=image, 4=watermark, 5=polygon, 6=polyline, 7=ellipse, 8=bezier, 9=arc
 
 	// Common fields
 	X float64
@@ -138,6 +138,11 @@ type GraphicsOp struct {
 	// Bezier fields
 	BezierSegs []BezierSegment
 	Closed     bool // For Bezier curves
+
+	// Arc fields (for Type == 9)
+	StartAngle float64 // Start angle in degrees (0 = right, CCW positive)
+	SweepAngle float64 // Angular extent in degrees (CCW positive)
+	Wedge      bool    // true = pie-slice fill (lines to center), false = chord fill
 
 	// Image fields (for Type == 3)
 	Image *ImageData
@@ -389,6 +394,8 @@ func renderGraphicsOp(csw *ContentStreamWriter, gop GraphicsOp, resources *Resou
 		return renderEllipse(csw, gop, resources)
 	case 8: // Bezier
 		return renderBezier(csw, gop, resources)
+	case 9: // Arc
+		return renderArc(csw, gop, resources)
 	default:
 		return fmt.Errorf("unknown graphics operation type: %d", gop.Type)
 	}
@@ -854,6 +861,145 @@ func renderBezier(csw *ContentStreamWriter, gop GraphicsOp, resources *ResourceD
 	} else if hasFill {
 		csw.Fill()
 	} else {
+		csw.Stroke()
+	}
+
+	csw.RestoreState()
+	return nil
+}
+
+// writeArcPath emits the Bézier curve operators that approximate an elliptical
+// arc centered at (cx, cy) with radii (rx, ry).
+//
+// startAngle is the start angle in degrees (0 = positive X, CCW positive).
+// sweepAngle is the total sweep in degrees (CCW positive, CW negative).
+//
+// The function moves to the arc start point and then appends cubic Bézier
+// segments, splitting the arc into at most 90° chunks using the Goldapp/Riskus
+// approximation formula for maximum accuracy.
+//
+// It does NOT close the path. The caller is responsible for any ClosePath or
+// fill/stroke operators.
+func writeArcPath(csw *ContentStreamWriter, cx, cy, rx, ry, startDeg, sweepDeg float64) {
+	const maxSegDeg = 90.0
+
+	// Convert to radians.
+	start := startDeg * math.Pi / 180.0
+	sweep := sweepDeg * math.Pi / 180.0
+
+	// Handle zero or near-zero sweep.
+	if sweep == 0 {
+		x := cx + rx*math.Cos(start)
+		y := cy + ry*math.Sin(start)
+		csw.MoveTo(x, y)
+		return
+	}
+
+	// Determine segment count (max 90° per segment).
+	absSweep := math.Abs(sweep)
+	segments := int(math.Ceil(absSweep / (maxSegDeg * math.Pi / 180.0)))
+	if segments < 1 {
+		segments = 1
+	}
+	sweepPerSeg := sweep / float64(segments)
+
+	// Starting point on the ellipse.
+	x0 := cx + rx*math.Cos(start)
+	y0 := cy + ry*math.Sin(start)
+	csw.MoveTo(x0, y0)
+
+	for i := 0; i < segments; i++ {
+		a1 := start + float64(i)*sweepPerSeg
+		a2 := start + float64(i+1)*sweepPerSeg
+
+		// Goldapp/Riskus alpha for arc-to-cubic approximation.
+		alpha := math.Sin(a2-a1) * (math.Sqrt(4+3*math.Tan((a2-a1)/2)*math.Tan((a2-a1)/2)) - 1) / 3
+
+		x1 := cx + rx*math.Cos(a1)
+		y1 := cy + ry*math.Sin(a1)
+		x2 := cx + rx*math.Cos(a2)
+		y2 := cy + ry*math.Sin(a2)
+
+		// Control points: tangent vectors scaled by alpha.
+		// For an ellipse, dx/dt = -rx*sin(t), dy/dt = ry*cos(t).
+		cp1x := x1 + alpha*(-rx*math.Sin(a1))
+		cp1y := y1 + alpha*(ry*math.Cos(a1))
+		cp2x := x2 - alpha*(-rx*math.Sin(a2))
+		cp2y := y2 - alpha*(ry*math.Cos(a2))
+
+		csw.CurveTo(cp1x, cp1y, cp2x, cp2y, x2, y2)
+	}
+}
+
+// renderArc renders an elliptical arc to the content stream.
+//
+// Fill modes (when FillColor, FillColorCMYK, or FillGradient is set):
+//   - Wedge == true:  pie-slice — a line is drawn from the arc start to the
+//     center, then the arc, then a line back to center, then the path is closed.
+//   - Wedge == false: chord — the arc is closed with a straight line from the
+//     arc end back to the arc start.
+//
+// When there is no fill only the arc curve is stroked (open path, S operator).
+func renderArc(csw *ContentStreamWriter, gop GraphicsOp, resources *ResourceDictionary) error {
+	applyOpacity(csw, gop.Opacity, resources)
+
+	cx, cy := gop.X, gop.Y
+	rx, ry := gop.RX, gop.RY
+	startDeg, sweepDeg := gop.StartAngle, gop.SweepAngle
+
+	hasStroke := gop.StrokeColor != nil || gop.StrokeColorCMYK != nil
+	hasFill := gop.FillColor != nil || gop.FillColorCMYK != nil || gop.FillGradient != nil
+
+	// Compute arc start and end points (needed for wedge/chord line construction).
+	startRad := startDeg * math.Pi / 180.0
+	endRad := (startDeg + sweepDeg) * math.Pi / 180.0
+	arcStartX := cx + rx*math.Cos(startRad)
+	arcStartY := cy + ry*math.Sin(startRad)
+	arcEndX := cx + rx*math.Cos(endRad)
+	arcEndY := cy + ry*math.Sin(endRad)
+
+	// writeArcShape emits the closed shape path used for fill and gradient.
+	writeArcShape := func() {
+		if gop.Wedge {
+			// Pie-slice: center → arc start → arc → arc end → center.
+			csw.MoveTo(cx, cy)
+			csw.LineTo(arcStartX, arcStartY)
+			writeArcPath(csw, cx, cy, rx, ry, startDeg, sweepDeg)
+			csw.LineTo(cx, cy)
+			csw.ClosePath()
+		} else {
+			// Chord: arc start → arc → arc end → arc start (close).
+			writeArcPath(csw, cx, cy, rx, ry, startDeg, sweepDeg)
+			csw.LineTo(arcEndX, arcEndY)
+			csw.ClosePath()
+		}
+	}
+
+	if gop.FillGradient != nil {
+		strokeFn := func() {
+			setStrokeState(csw, gop)
+			writeArcShape()
+			csw.Stroke()
+		}
+		renderGradientFill(csw, gop.FillGradient, resources, writeArcShape, hasStroke, strokeFn)
+		csw.RestoreState()
+		return nil
+	}
+
+	setStrokeState(csw, gop)
+
+	if hasFill {
+		// Draw the closed shape for fill.
+		writeArcShape()
+		setFillColor(csw, gop.FillColor, gop.FillColorCMYK)
+		if hasStroke {
+			csw.FillAndStroke()
+		} else {
+			csw.Fill()
+		}
+	} else {
+		// Stroke only: open arc path.
+		writeArcPath(csw, cx, cy, rx, ry, startDeg, sweepDeg)
 		csw.Stroke()
 	}
 

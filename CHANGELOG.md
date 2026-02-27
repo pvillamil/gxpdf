@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Arc Drawing** - Elliptical and circular arcs with wedge/chord fill modes (#59)
+  - `DrawArc(cx, cy, rx, ry, startAngle, sweepAngle, opts)` for elliptical arcs
+  - `DrawCircularArc(cx, cy, radius, startAngle, sweepAngle, opts)` convenience wrapper
+  - Wedge (pie-slice) fill: lines from arc endpoints to center
+  - Chord fill: straight line between arc endpoints
+  - Full styling support: stroke, fill, gradient, opacity, dash patterns
+  - Arc-to-cubic-Bezier approximation (1 segment per 90°, Goldapp/Riskus formula)
+
+---
+
 ## [0.6.0] - 2026-02-25
 
 ### Added
