@@ -1057,6 +1057,13 @@ func convertGraphicsOptions(gop *writer.GraphicsOp, op *GraphicsOperation) {
 	if op.BezierOpts != nil {
 		convertBezierOptions(gop, op.BezierOpts)
 	}
+
+	// Arc options
+	if op.ArcOpts != nil {
+		convertArcOptions(gop, op.ArcOpts)
+		gop.StartAngle = op.StartAngle
+		gop.SweepAngle = op.SweepAngle
+	}
 }
 
 // convertRectOptions converts rectangle options.
@@ -1334,6 +1341,36 @@ func (c *Creator) updateChapterPageIndices(ch *Chapter, offset int) {
 //	// Direct domain operations...
 func (c *Creator) Document() *document.Document {
 	return c.doc
+}
+
+// convertArcOptions converts arc options to writer options.
+func convertArcOptions(gop *writer.GraphicsOp, opts *ArcOptions) {
+	if opts.StrokeColor != nil {
+		gop.StrokeColor = &writer.RGB{R: opts.StrokeColor.R, G: opts.StrokeColor.G, B: opts.StrokeColor.B}
+	}
+	if opts.StrokeColorCMYK != nil {
+		gop.StrokeColorCMYK = &writer.CMYK{C: opts.StrokeColorCMYK.C, M: opts.StrokeColorCMYK.M, Y: opts.StrokeColorCMYK.Y, K: opts.StrokeColorCMYK.K}
+	}
+	if opts.FillColor != nil {
+		gop.FillColor = &writer.RGB{R: opts.FillColor.R, G: opts.FillColor.G, B: opts.FillColor.B}
+	}
+	if opts.FillColorCMYK != nil {
+		gop.FillColorCMYK = &writer.CMYK{C: opts.FillColorCMYK.C, M: opts.FillColorCMYK.M, Y: opts.FillColorCMYK.Y, K: opts.FillColorCMYK.K}
+	}
+	if opts.FillGradient != nil {
+		gop.FillGradient = convertGradient(opts.FillGradient)
+	}
+	gop.StrokeWidth = opts.StrokeWidth
+	gop.Dashed = opts.Dashed
+	gop.DashArray = opts.DashArray
+	gop.DashPhase = opts.DashPhase
+	if opts.Opacity != nil {
+		gop.Opacity = *opts.Opacity
+	}
+	// Wedge defaults to true when nil
+	if opts.Wedge == nil || *opts.Wedge {
+		gop.Wedge = true
+	}
 }
 
 // Errors.
