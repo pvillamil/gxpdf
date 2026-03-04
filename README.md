@@ -2,11 +2,14 @@
 
 ![GxPDF Cover](assets/gh_cover.png)
 
+[![GitHub Release](https://img.shields.io/github/v/release/coregx/gxpdf)](https://github.com/coregx/gxpdf/releases/latest)
 [![Go Version](https://img.shields.io/badge/Go-1.25+-00ADD8?style=flat&logo=go)](https://go.dev/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/coregx/gxpdf/actions/workflows/test.yml/badge.svg)](https://github.com/coregx/gxpdf/actions/workflows/test.yml)
+[![codecov](https://codecov.io/gh/coregx/gxpdf/branch/main/graph/badge.svg)](https://codecov.io/gh/coregx/gxpdf)
 [![GoDoc](https://pkg.go.dev/badge/github.com/coregx/gxpdf)](https://pkg.go.dev/github.com/coregx/gxpdf)
 [![Go Report Card](https://goreportcard.com/badge/github.com/coregx/gxpdf)](https://goreportcard.com/report/github.com/coregx/gxpdf)
+[![GitHub Stars](https://img.shields.io/github/stars/coregx/gxpdf)](https://github.com/coregx/gxpdf/stargazers)
 
 **GxPDF** is a modern, high-performance PDF library for Go, built with clean architecture and Go 1.25+ best practices.
 

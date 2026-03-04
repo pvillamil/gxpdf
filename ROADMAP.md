@@ -97,30 +97,12 @@ Page sizes, custom dimensions, landscape orientation, and text rotation:
 - `AddTextRotated` / `AddTextColorRotated` — standard 14 + custom TTF/OTF fonts
 - Angle normalization to [0, 360)
 
-### v0.5.1
-
-**Released**: February 2026
-
-Gradient rendering and ExtGState fix:
-
-#### Full Gradient Rendering (#57)
-- Real PDF Shading dictionaries replace solid-color stub
-- ShadingType 2 (axial) for linear gradients, ShadingType 3 (radial) for radial
-- Multi-stop support via Type 3 stitching functions
-- Clip+Shade technique on all shape types
-
-#### ExtGState Object Creation Fix (#46, #47)
-- Shape and text opacity now produce valid PDF output
-
-## Current Development
-
 ### v0.5.0 "Opacity & Bezier"
 
 **Released**: February 2026
 
 #### Shape Opacity Fix (#47)
 - Fixed 3-layer pipeline gap: opacity now propagated through writer
-- Affects all shape types (circles, ellipses, rectangles, polygons, etc.)
 
 #### Quadratic Bezier Curves (#45)
 - `DrawQuadBezierCurve` with `QuadBezierSegment` struct
@@ -130,50 +112,50 @@ Gradient rendering and ExtGState fix:
 - `AddTextColorAlpha`, `AddTextColorRotatedAlpha` + custom font variants
 - ExtGState transparency via `/ca` and `/CA` keys
 
+### v0.6.0 "Encrypted Reading & Gradients"
+
+**Released**: February 2026
+
+#### Encrypted PDF Reading (#34)
+- Standard Security Handler: RC4-40, RC4-128, AES-128
+- `OpenWithPassword()` / `Open()` with transparent empty-password handling
+- `ErrPasswordRequired` sentinel error
+
+#### Full Gradient Rendering (#57)
+- PDF Shading Type 2 (axial) + Type 3 (radial), multi-stop
+- Clip+Shade technique on all shape types
+
+#### ExtGState Object Creation Fix (#46, #47)
+- Shape and text opacity now produce valid PDF output
+
 ## Current Development
 
-### v0.6.0 - Encryption Reading & Digital Signatures
+### Unreleased (on main)
 
-**Status**: In progress
+- **Arc Drawing** (#59) — elliptical/circular arcs with wedge/chord fill modes
 
-#### Encrypted PDF Reading (Done)
-- **Standard Security Handler** - RC4-40 (V=1/R=2), RC4-128 (V=2/R=3), AES-128 (V=4/R=4/AESV2)
-- **Password support** - `OpenWithPassword()` for non-empty passwords, `Open()` handles empty passwords transparently
-- **Key Derivation** - Algorithm 2 (MD5-based document key), Algorithm 1 (per-object keys)
-- **Password Verification** - Algorithm 6 (R=2 full compare, R=3/4 first 16 bytes)
-- **Stream/String Decryption** - Per-object RC4 or AES-CBC before decompression
-- **`ErrPasswordRequired`** - Sentinel error for wrong/missing password
+### Planned
 
-#### Digital Signatures
-- **Sign PDFs** - Apply digital signatures with PKCS#12 certificates
-- **Verify Signatures** - Validate existing signatures
-- **Visible/Invisible** - Both signature types
+#### v0.7.0 - Developer Experience & Signatures
 
-#### Developer Experience
+- **Digital Signatures** - Sign and verify PDFs with PKCS#12
 - **Fluent Text API** - Chainable text rendering
 - **Paragraph Support** - Multi-line text with wrapping
 - **Y-Cursor** - Automatic vertical positioning
 - **Simple Table API** - Easy table creation
+- **HTML to PDF** - Render WYSIWYG HTML into PDF (may be separate library)
 
-### v0.7.0 - PDF/A & Advanced Features
+#### v0.8.0 - Advanced Features
 
-- **PDF/A-1b** - Basic archival compliance
-- **PDF/A-2b** - Extended archival compliance
+- **PDF/A Compliance** - Archival format support
 - **SVG Import** - Convert SVG to PDF graphics
-- **Invoice Template** - Pre-built invoice generation
-- **Chart Integration** - Embed charts in PDFs
-
-### v0.8.0 - Rendering & Optimization
-
 - **PDF Render** - Render PDF pages to images
 - **Barcode Generation** - QR codes, Code128, etc.
-- **Font Subsetting Optimization** - Reduce file size
-- **Linearization** - Fast web view support
 
-### v1.0.0 - Stable Release
+#### v1.0.0 - Stable Release
 
 - API stability guarantee
-- Performance optimization
+- Test coverage 80%+
 - Comprehensive documentation
 - Security audit
 
@@ -216,12 +198,13 @@ Gradient rendering and ExtGState fix:
 | Shape Opacity | Done | v0.5.0 |
 | Quadratic Bezier Curves | Done | v0.5.0 |
 | Text Opacity | Done | v0.5.0 |
-| Gradient Rendering (PDF Shading) | Done | v0.5.1 |
+| Gradient Rendering (PDF Shading) | Done | v0.6.0 |
 | Encrypted PDF Reading | Done | v0.6.0 |
-| Arc Drawing (elliptical/circular) | Done | v0.6.1 |
+| Arc Drawing (elliptical/circular) | Done | unreleased |
+| HTML to PDF | Planned | v0.7.0 |
 | Digital Signatures | Planned | v0.7.0 |
 | Fluent Text API | Planned | v0.7.0 |
-| PDF/A Compliance | Planned | v0.7.0 |
+| PDF/A Compliance | Planned | v0.8.0 |
 | PDF Render to Image | Planned | v0.8.0 |
 
 ## Backlog
@@ -237,6 +220,7 @@ Gradient rendering and ExtGState fix:
 | feat-078 | Gradient Rendering | **P1** | **Done** | Full PDF Shading (Type 2/3) for gradients (#57) |
 | feat-042 | Encrypted PDF Reading | **P1** | **Done** | RC4/AES-128 with password support |
 | feat-079 | Arc Drawing | **P2** | **Done** | Elliptical/circular arcs with wedge/chord (#59) |
+| feat-080 | HTML to PDF | **P2** | Backlog | Render WYSIWYG HTML via GxPDF |
 | feat-037 | Digital Signatures | **P2** | Backlog | Sign and verify PDFs |
 | feat-062 | Fluent Text API | P3 | Backlog | Chainable text methods |
 | feat-063 | Paragraph | P3 | Backlog | Multi-line text container |
