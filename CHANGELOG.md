@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Full styling support: stroke, fill, gradient, opacity, dash patterns
   - Arc-to-cubic-Bezier approximation (1 segment per 90°, Goldapp/Riskus formula)
 
+### Changed
+- **CI**: Codecov action upgraded from v4 to v5 with OIDC authentication
+- **README**: Added Codecov coverage badge
+
 ---
 
 ## [0.6.0] - 2026-02-25

@@ -29,6 +29,10 @@ on:
       - master
       - develop
 
+permissions:
+  contents: read
+  id-token: write  # Required for Codecov OIDC
+
 jobs:
   # Unit tests - Cross-platform
   unit-tests:
@@ -65,9 +69,10 @@ jobs:
 
     - name: Upload coverage to Codecov
       if: matrix.os == 'ubuntu-latest' && matrix.go-version == '1.25'
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v5
       continue-on-error: true
       with:
+        use_oidc: true
         file: ./coverage.txt
         flags: unittests
         name: codecov-unit
