@@ -199,15 +199,15 @@ func main() {
 
 							t.Header(func(h *builder.TableRowBuilder) {
 								h.Cell(func(c *builder.CellBuilder) {
-									c.Text("Region", builder.Bold(), builder.FontSize(9))
-								})
+									c.Text("Region", builder.Bold(), builder.FontSize(9), builder.TextColor(builder.White))
+								}, builder.CellPadding(builder.Pt(8)))
 								h.Cell(func(c *builder.CellBuilder) {
-									c.Text("Share", builder.Bold(), builder.FontSize(9), builder.AlignRight())
-								})
+									c.Text("Share", builder.Bold(), builder.FontSize(9), builder.TextColor(builder.White), builder.AlignRight())
+								}, builder.CellPadding(builder.Pt(8)))
 								h.Cell(func(c *builder.CellBuilder) {
-									c.Text("YoY", builder.Bold(), builder.FontSize(9), builder.AlignRight())
-								})
-							}, builder.TableRowBg(builder.Hex("#E8EDF4")))
+									c.Text("YoY", builder.Bold(), builder.FontSize(9), builder.TextColor(builder.White), builder.AlignRight())
+								}, builder.CellPadding(builder.Pt(8)))
+							}, builder.TableRowBg(builder.Navy))
 
 							regionData := []struct{ name, share, yoy string }{
 								{"NA", "54%", "+18%"},
