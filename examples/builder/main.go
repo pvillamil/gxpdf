@@ -237,7 +237,7 @@ func main() {
 
 			c.Spacer(builder.Mm(8))
 
-			// --- Management commentary ---
+			// --- Management commentary (uses RichText for inline style mixing) ---
 			c.KeepTogether(func(inner *builder.Container) {
 				inner.Text("Management Commentary",
 					builder.Bold(),
@@ -245,26 +245,35 @@ func main() {
 					builder.TextColor(builder.Navy),
 				)
 				inner.Spacer(builder.Mm(3))
-				inner.Text(
-					"Q1 2026 exceeded expectations across all primary metrics. "+
-						"The strategic shift toward enterprise contracts, initiated in "+
-						"H2 2025, is delivering measurable results with average contract "+
-						"value increasing 41% to $18,400. Customer acquisition costs "+
-						"decreased 12% due to improved marketing efficiency and stronger "+
-						"inbound demand from our content and community programs.",
-					builder.FontSize(10),
-					builder.LineHeight(1.5),
-					builder.AlignJustify(),
-				)
+
+				// RichText: mix normal, bold-green highlights, and italic inline.
+				inner.RichText(func(rt *builder.RichTextBuilder) {
+					rt.Span("Q1 2026 exceeded expectations across all primary metrics. " +
+						"The strategic shift toward enterprise contracts, initiated in " +
+						"H2 2025, is delivering measurable results with average contract " +
+						"value increasing ")
+					rt.Span("41%", builder.Bold(), builder.TextColor(builder.Hex("#1B7B34")))
+					rt.Span(" to ")
+					rt.Span("$18,400", builder.Bold(), builder.TextColor(builder.Hex("#1B7B34")))
+					rt.Span(". Customer acquisition costs decreased ")
+					rt.Span("12%", builder.Bold(), builder.TextColor(builder.Hex("#1B7B34")))
+					rt.Span(" due to improved marketing efficiency and stronger " +
+						"inbound demand from our content and community programs.")
+				}, builder.FontSize(10), builder.LineHeight(1.5), builder.AlignJustify())
+
 				inner.Spacer(builder.Mm(3))
-				inner.Text(
-					"Looking ahead to Q2 2026, the pipeline stands at $9.7M with "+
-						"an estimated close rate of 38%. We are on track to meet full-year "+
-						"targets and will continue to invest in product-led growth initiatives.",
-					builder.FontSize(10),
-					builder.LineHeight(1.5),
-					builder.AlignJustify(),
-				)
+
+				// Second paragraph: italic note with a bold key figure inline.
+				inner.RichText(func(rt *builder.RichTextBuilder) {
+					rt.Span("Looking ahead to Q2 2026, the pipeline stands at ")
+					rt.Span("$9.7M", builder.Bold())
+					rt.Span(" with an estimated close rate of ")
+					rt.Span("38%", builder.Bold())
+					rt.Span(". We are on track to meet full-year targets and will " +
+						"continue to invest in ")
+					rt.Span("product-led growth", builder.Italic())
+					rt.Span(" initiatives.")
+				}, builder.FontSize(10), builder.LineHeight(1.5), builder.AlignJustify())
 			})
 
 			// Explicit page break — the next section starts on page 2.
@@ -290,10 +299,10 @@ func main() {
 			c.Spacer(builder.Mm(3))
 
 			revenueRows := []struct {
-				name               string
-				q1, q2, q3, q4    string
-				annual             string
-				isTotal            bool
+				name           string
+				q1, q2, q3, q4 string
+				annual         string
+				isTotal        bool
 			}{
 				{"Enterprise SaaS", "1,840", "1,920", "2,100", "2,340", "8,200", false},
 				{"SMB Platform", "1,050", "1,080", "1,140", "1,210", "4,480", false},
@@ -439,6 +448,7 @@ func main() {
 	fmt.Println("  - Header/Footer zones with PageNumber placeholders")
 	fmt.Println("  - KeepTogether to prevent section splits")
 	fmt.Println("  - Explicit PageBreak for multi-page documents")
+	fmt.Println("  - RichText: mixed-style inline text with bold/italic/color spans")
 }
 
 // rowBgForIndex returns a TableRowBg option for zebra-striped rows.

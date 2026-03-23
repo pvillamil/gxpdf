@@ -41,6 +41,41 @@ func (c *Container) Text(text string, opts ...TextOption) {
 	c.elements = append(c.elements, elem)
 }
 
+// RichText adds a mixed-style inline text paragraph to the container. The fn
+// callback receives a [RichTextBuilder] which is used to append individual
+// spans with their own style overrides via [RichTextBuilder.Span] and
+// hyperlinks via [RichTextBuilder.Link].
+//
+// Optional TextOption values in opts define the base style that all spans
+// inherit unless they override it explicitly.
+//
+// Example:
+//
+//	c.RichText(func(rt *builder.RichTextBuilder) {
+//	    rt.Span("Revenue grew ")
+//	    rt.Span("+18% ", builder.Bold(), builder.TextColor(builder.Hex("#1B7B34")))
+//	    rt.Span("year-over-year, driven by enterprise contract wins.")
+//	}, builder.FontSize(10), builder.LineHeight(1.5), builder.AlignJustify())
+func (c *Container) RichText(fn func(*RichTextBuilder), opts ...TextOption) {
+	baseStyle := applyTextOptions(c.b.defaultStyle(), opts)
+	rtb := &RichTextBuilder{
+		b:         c.b,
+		baseStyle: baseStyle,
+	}
+	fn(rtb)
+
+	// Extract alignment and line height from the base style so they propagate
+	// to the layout element. We read the raw fields; RichText.PlanLayout will
+	// apply effective() to each fragment's style independently.
+	align := baseStyle.TextAlign
+	lineHeight := baseStyle.LineHeight
+	if lineHeight <= 0 {
+		lineHeight = 1.2 // match layout.DefaultStyle()
+	}
+	elem := rtb.build(align, lineHeight)
+	c.elements = append(c.elements, elem)
+}
+
 // PageNumber adds a page number element to the container. The format string
 // should contain PageNum and/or TotalPages placeholders for substitution
 // during the two-pass page number resolution.
