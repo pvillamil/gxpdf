@@ -2,50 +2,48 @@ package builder
 
 import (
 	"testing"
-
-	"github.com/coregx/gxpdf/layout"
 )
 
 func TestHex_ValidFormats(t *testing.T) {
 	tests := []struct {
 		name  string
 		input string
-		want  layout.Color
+		want  Color
 	}{
 		{
 			name:  "hash prefix uppercase",
 			input: "#1A237E",
-			want:  layout.RGB255(0x1A, 0x23, 0x7E),
+			want:  RGB255(0x1A, 0x23, 0x7E),
 		},
 		{
 			name:  "no hash lowercase",
 			input: "ff5722",
-			want:  layout.RGB255(0xFF, 0x57, 0x22),
+			want:  RGB255(0xFF, 0x57, 0x22),
 		},
 		{
 			name:  "black",
 			input: "#000000",
-			want:  layout.RGB(0, 0, 0),
+			want:  RGB(0, 0, 0),
 		},
 		{
 			name:  "white",
 			input: "#FFFFFF",
-			want:  layout.RGB255(255, 255, 255),
+			want:  RGB255(255, 255, 255),
 		},
 		{
 			name:  "hash prefix lowercase",
 			input: "#aabbcc",
-			want:  layout.RGB255(0xAA, 0xBB, 0xCC),
+			want:  RGB255(0xAA, 0xBB, 0xCC),
 		},
 		{
 			name:  "mixed case",
 			input: "#AbCdEf",
-			want:  layout.RGB255(0xAB, 0xCD, 0xEF),
+			want:  RGB255(0xAB, 0xCD, 0xEF),
 		},
 		{
 			name:  "leading whitespace trimmed",
 			input: "  #FF0000",
-			want:  layout.RGB255(255, 0, 0),
+			want:  RGB255(255, 0, 0),
 		},
 	}
 	for _, tc := range tests {
@@ -80,7 +78,7 @@ func TestHex_InvalidFormats(t *testing.T) {
 
 func TestPredefinedColors(t *testing.T) {
 	// Verify that predefined colors are in the [0,1] range and are distinct.
-	colors := map[string]layout.Color{
+	colors := map[string]Color{
 		"Black":     Black,
 		"White":     White,
 		"Red":       Red,
@@ -113,7 +111,7 @@ func TestPredefinedColors(t *testing.T) {
 func TestPredefinedColors_KnownValues(t *testing.T) {
 	tests := []struct {
 		name  string
-		got   layout.Color
+		got   Color
 		wantR float64
 		wantG float64
 		wantB float64
@@ -150,7 +148,7 @@ func TestHexToString_RoundTrip(t *testing.T) {
 }
 
 // colorsEqual returns true when both colors are within epsilon on all components.
-func colorsEqual(a, b layout.Color, eps float64) bool {
+func colorsEqual(a, b Color, eps float64) bool {
 	diff := func(x, y float64) float64 {
 		if x > y {
 			return x - y

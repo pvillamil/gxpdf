@@ -38,16 +38,18 @@ func FontFamily(family string) TextOption {
 }
 
 // TextColor sets the foreground text color.
-func TextColor(c layout.Color) TextOption {
+func TextColor(c Color) TextOption {
+	lc := c.toLayout()
 	return func(s *layout.Style) {
-		s.Color = c
+		s.Color = lc
 	}
 }
 
 // BgColor sets the background fill color of the text element's bounding box.
-func BgColor(c layout.Color) TextOption {
+func BgColor(c Color) TextOption {
+	lc := c.toLayout()
 	return func(s *layout.Style) {
-		s.Background = &c
+		s.Background = &lc
 	}
 }
 
@@ -129,16 +131,18 @@ type rowConfig struct {
 }
 
 // RowHeight sets an explicit height for a row.
-func RowHeight(h layout.Value) RowOption {
+func RowHeight(h Value) RowOption {
+	lh := h.toLayout()
 	return func(c *rowConfig) {
-		c.height = &h
+		c.height = &lh
 	}
 }
 
 // RowBg sets the background color for the entire row.
-func RowBg(c layout.Color) RowOption {
+func RowBg(c Color) RowOption {
+	lc := c.toLayout()
 	return func(cfg *rowConfig) {
-		cfg.bgColor = &c
+		cfg.bgColor = &lc
 	}
 }
 
@@ -161,16 +165,18 @@ type imageConfig struct {
 }
 
 // FitWidth constrains the image width to the given value, preserving aspect ratio.
-func FitWidth(w layout.Value) ImageOption {
+func FitWidth(w Value) ImageOption {
+	lw := w.toLayout()
 	return func(c *imageConfig) {
-		c.width = &w
+		c.width = &lw
 	}
 }
 
 // FitHeight constrains the image height to the given value, preserving aspect ratio.
-func FitHeight(h layout.Value) ImageOption {
+func FitHeight(h Value) ImageOption {
+	lh := h.toLayout()
 	return func(c *imageConfig) {
-		c.height = &h
+		c.height = &lh
 	}
 }
 
@@ -193,9 +199,10 @@ type lineConfig struct {
 }
 
 // LineColor sets the color of a horizontal rule.
-func LineColor(c layout.Color) LineOption {
+func LineColor(c Color) LineOption {
+	lc := c.toLayout()
 	return func(cfg *lineConfig) {
-		cfg.color = &c
+		cfg.color = &lc
 	}
 }
 

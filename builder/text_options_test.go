@@ -54,8 +54,9 @@ func TestFontFamily(t *testing.T) {
 func TestTextColor(t *testing.T) {
 	s := layout.DefaultStyle()
 	TextColor(Red)(&s)
-	if s.Color != Red {
-		t.Errorf("TextColor(Red) -> Style.Color = %v, want %v", s.Color, Red)
+	want := Red.toLayout()
+	if s.Color != want {
+		t.Errorf("TextColor(Red) -> Style.Color = %v, want %v", s.Color, want)
 	}
 }
 
@@ -65,8 +66,9 @@ func TestBgColor(t *testing.T) {
 	if s.Background == nil {
 		t.Fatal("BgColor should set a non-nil Background")
 	}
-	if *s.Background != LightGray {
-		t.Errorf("BgColor(LightGray) -> *Background = %v, want %v", *s.Background, LightGray)
+	want := LightGray.toLayout()
+	if *s.Background != want {
+		t.Errorf("BgColor(LightGray) -> *Background = %v, want %v", *s.Background, want)
 	}
 }
 
@@ -140,8 +142,9 @@ func TestApplyTextOptions_Composition(t *testing.T) {
 	if result.FontSize != 18 {
 		t.Errorf("expected FontSize = 18, got %f", result.FontSize)
 	}
-	if result.Color != Red {
-		t.Errorf("expected Color = Red, got %v", result.Color)
+	want := Red.toLayout()
+	if result.Color != want {
+		t.Errorf("expected Color = Red (layout), got %v", result.Color)
 	}
 	if result.TextAlign != layout.AlignRight {
 		t.Errorf("expected TextAlign = AlignRight, got %d", result.TextAlign)
@@ -174,7 +177,7 @@ func TestApplyTextOptions_BaseNotMutated(t *testing.T) {
 }
 
 func TestRowHeight(t *testing.T) {
-	cfg := applyRowOptions([]RowOption{RowHeight(layout.Mm(30))})
+	cfg := applyRowOptions([]RowOption{RowHeight(Mm(30))})
 	if cfg.height == nil {
 		t.Fatal("RowHeight should set height")
 	}
@@ -188,8 +191,9 @@ func TestRowBg(t *testing.T) {
 	if cfg.bgColor == nil {
 		t.Fatal("RowBg should set bgColor")
 	}
-	if *cfg.bgColor != Navy {
-		t.Errorf("RowBg(Navy) -> bgColor = %v, want %v", *cfg.bgColor, Navy)
+	want := Navy.toLayout()
+	if *cfg.bgColor != want {
+		t.Errorf("RowBg(Navy) -> bgColor = %v, want %v", *cfg.bgColor, want)
 	}
 }
 
@@ -204,7 +208,7 @@ func TestApplyRowOptions_Empty(t *testing.T) {
 }
 
 func TestFitWidth(t *testing.T) {
-	cfg := applyImageOptions([]ImageOption{FitWidth(layout.Mm(60))})
+	cfg := applyImageOptions([]ImageOption{FitWidth(Mm(60))})
 	if cfg.width == nil {
 		t.Fatal("FitWidth should set width")
 	}
@@ -214,7 +218,7 @@ func TestFitWidth(t *testing.T) {
 }
 
 func TestFitHeight(t *testing.T) {
-	cfg := applyImageOptions([]ImageOption{FitHeight(layout.Mm(40))})
+	cfg := applyImageOptions([]ImageOption{FitHeight(Mm(40))})
 	if cfg.height == nil {
 		t.Fatal("FitHeight should set height")
 	}
@@ -228,8 +232,9 @@ func TestLineColorOption(t *testing.T) {
 	if cfg.color == nil {
 		t.Fatal("LineColor should set color")
 	}
-	if *cfg.color != Blue {
-		t.Errorf("LineColor(Blue) -> color = %v, want %v", *cfg.color, Blue)
+	want := Blue.toLayout()
+	if *cfg.color != want {
+		t.Errorf("LineColor(Blue) -> color = %v, want %v", *cfg.color, want)
 	}
 }
 

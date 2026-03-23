@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/coregx/gxpdf/builder"
-	"github.com/coregx/gxpdf/layout"
 )
 
 // TestBuild_EmptyDocument verifies that an empty builder produces valid PDF bytes.
@@ -29,7 +28,7 @@ func TestBuild_SinglePage(t *testing.T) {
 	b.Page(func(p *builder.PageBuilder) {
 		p.Content(func(c *builder.Container) {
 			c.Text("Hello, World!")
-			c.Spacer(layout.Mm(5))
+			c.Spacer(builder.Mm(5))
 			c.Text("Second paragraph", builder.Bold(), builder.FontSize(14))
 			c.Line(builder.LineColor(builder.Black))
 		})
@@ -54,7 +53,7 @@ func TestBuild_PageWithHeaderAndFooter(t *testing.T) {
 		})
 		p.Footer(func(f *builder.Container) {
 			f.PageNumber(
-				layout.PageNumberPlaceholder+" / "+layout.TotalPagesPlaceholder,
+				builder.PageNum+" / "+builder.TotalPages,
 				builder.AlignRight(),
 				builder.FontSize(8),
 			)
@@ -97,7 +96,7 @@ func TestBuild_RowWithOptions(t *testing.T) {
 				r.Col(12, func(col *builder.ColBuilder) {
 					col.Text("Header row", builder.Bold(), builder.TextColor(builder.White))
 				})
-			}, builder.RowBg(builder.Navy), builder.RowHeight(layout.Mm(12)))
+			}, builder.RowBg(builder.Navy), builder.RowHeight(builder.Mm(12)))
 		})
 	})
 
@@ -163,7 +162,7 @@ func TestBuild_MultiplePages(t *testing.T) {
 
 // TestBuild_CustomPageSize verifies a non-default page size is accepted.
 func TestBuild_CustomPageSize(t *testing.T) {
-	b := builder.NewBuilder(builder.WithPageSize(layout.PageLetter))
+	b := builder.NewBuilder(builder.WithPageSize(builder.Letter))
 	b.Page(func(p *builder.PageBuilder) {
 		p.Content(func(c *builder.Container) { c.Text("Letter-size document") })
 	})
@@ -178,7 +177,7 @@ func TestBuild_CustomPageSize(t *testing.T) {
 // TestBuild_CustomMargins verifies custom margins option.
 func TestBuild_CustomMargins(t *testing.T) {
 	b := builder.NewBuilder(
-		builder.WithMargins(layout.Mm(30), layout.Mm(25), layout.Mm(30), layout.Mm(25)),
+		builder.WithMargins(builder.Mm(30), builder.Mm(25), builder.Mm(30), builder.Mm(25)),
 	)
 	b.Page(func(p *builder.PageBuilder) {
 		p.Content(func(c *builder.Container) { c.Text("Custom margins document") })
@@ -195,8 +194,8 @@ func TestBuild_CustomMargins(t *testing.T) {
 func TestBuild_PageLevelSizeAndMargins(t *testing.T) {
 	b := builder.NewBuilder()
 	b.Page(func(p *builder.PageBuilder) {
-		p.Size(layout.PageLetter)
-		p.Margins(layout.In(1), layout.In(1), layout.In(1), layout.In(1))
+		p.Size(builder.Letter)
+		p.Margins(builder.In(1), builder.In(1), builder.In(1), builder.In(1))
 		p.Content(func(c *builder.Container) {
 			c.Text("Page with explicit size and margins")
 		})
@@ -292,7 +291,7 @@ func TestBuild_EnsureSpace(t *testing.T) {
 	b.Page(func(p *builder.PageBuilder) {
 		p.Content(func(c *builder.Container) {
 			c.Text("Some content before ensure-space guard")
-			c.EnsureSpace(layout.Mm(100))
+			c.EnsureSpace(builder.Mm(100))
 			c.Text("This may appear on a new page if space is tight")
 		})
 	})
@@ -330,10 +329,10 @@ func TestBuild_NestedRows(t *testing.T) {
 	assertValidPDF(t, pdfBytes)
 }
 
-// TestBuild_DefaultStyle verifies WithDefaultStyle propagates to elements.
+// TestBuild_DefaultStyle verifies WithDefaultFontSize propagates to elements.
 func TestBuild_DefaultStyle(t *testing.T) {
 	b := builder.NewBuilder(
-		builder.WithDefaultStyle(layout.Style{FontSize: 11}),
+		builder.WithDefaultFontSize(11),
 	)
 	b.Page(func(p *builder.PageBuilder) {
 		p.Content(func(c *builder.Container) { c.Text("Default style text") })
@@ -351,7 +350,7 @@ func TestBuild_ImagePlaceholder(t *testing.T) {
 	b := builder.NewBuilder()
 	b.Page(func(p *builder.PageBuilder) {
 		p.Content(func(c *builder.Container) {
-			c.Image([]byte("FAKE"), builder.FitWidth(layout.Mm(60)))
+			c.Image([]byte("FAKE"), builder.FitWidth(builder.Mm(60)))
 		})
 	})
 
@@ -369,7 +368,7 @@ func TestBuild_LongDocument(t *testing.T) {
 		p.Content(func(c *builder.Container) {
 			for i := 0; i < 100; i++ {
 				c.Text("This is paragraph number line content that may wrap when the column is narrow enough to cause overflow into the next page during pagination testing.")
-				c.Spacer(layout.Pt(4))
+				c.Spacer(builder.Pt(4))
 			}
 		})
 	})

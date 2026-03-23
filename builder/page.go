@@ -71,9 +71,10 @@ func (p *PageBuilder) Footer(fn func(*Container)) {
 //
 // Example:
 //
-//	page.Size(layout.PageLetter)
-func (p *PageBuilder) Size(s layout.Size) {
-	p.def.size = &s
+//	page.Size(builder.Letter)
+func (p *PageBuilder) Size(s Size) {
+	ls := s.toLayout()
+	p.def.size = &ls
 }
 
 // Margins overrides the page margins for this page definition. When not
@@ -81,13 +82,13 @@ func (p *PageBuilder) Size(s layout.Size) {
 //
 // Example:
 //
-//	page.Margins(layout.Mm(25), layout.Mm(20), layout.Mm(25), layout.Mm(20))
-func (p *PageBuilder) Margins(top, right, bottom, left layout.Value) {
+//	page.Margins(builder.Mm(25), builder.Mm(20), builder.Mm(25), builder.Mm(20))
+func (p *PageBuilder) Margins(top, right, bottom, left Value) {
 	m := layout.Edges{
-		Top:    top,
-		Right:  right,
-		Bottom: bottom,
-		Left:   left,
+		Top:    top.toLayout(),
+		Right:  right.toLayout(),
+		Bottom: bottom.toLayout(),
+		Left:   left.toLayout(),
 	}
 	p.def.margins = &m
 }

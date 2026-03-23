@@ -46,27 +46,27 @@ func defaultConfig() config {
 //
 // Example:
 //
-//	builder.NewBuilder(builder.WithPageSize(layout.PageLetter))
-func WithPageSize(size layout.Size) Option {
+//	builder.NewBuilder(builder.WithPageSize(builder.Letter))
+func WithPageSize(size Size) Option {
 	return func(c *config) {
-		c.pageSize = size
+		c.pageSize = size.toLayout()
 	}
 }
 
-// WithMargins sets the default page margins using layout.Value units (pt, mm, cm, in).
+// WithMargins sets the default page margins using Value units (pt, mm, cm, in).
 //
 // Example:
 //
 //	builder.NewBuilder(builder.WithMargins(
-//	    layout.Mm(20), layout.Mm(15), layout.Mm(20), layout.Mm(15),
+//	    builder.Mm(20), builder.Mm(15), builder.Mm(20), builder.Mm(15),
 //	))
-func WithMargins(top, right, bottom, left layout.Value) Option {
+func WithMargins(top, right, bottom, left Value) Option {
 	return func(c *config) {
 		c.margins = layout.Edges{
-			Top:    top,
-			Right:  right,
-			Bottom: bottom,
-			Left:   left,
+			Top:    top.toLayout(),
+			Right:  right.toLayout(),
+			Bottom: bottom.toLayout(),
+			Left:   left.toLayout(),
 		}
 	}
 }
@@ -119,14 +119,32 @@ func WithFontFile(family string, path string) Option {
 	}
 }
 
-// WithDefaultStyle sets the base style applied to all text elements unless overridden.
-//
-// Example:
-//
-//	builder.NewBuilder(builder.WithDefaultStyle(layout.Style{FontSize: 11}))
-func WithDefaultStyle(s layout.Style) Option {
+// WithDefaultFontSize sets the default font size for all text elements.
+func WithDefaultFontSize(size float64) Option {
 	return func(c *config) {
-		c.defaultStyle = s
+		c.defaultStyle.FontSize = size
+	}
+}
+
+// WithDefaultFontFamily sets the default font family for all text elements.
+// The family must have been registered via WithFont or WithFontFile.
+func WithDefaultFontFamily(family string) Option {
+	return func(c *config) {
+		c.defaultStyle.Font.Family = family
+	}
+}
+
+// WithDefaultColor sets the default text color for all text elements.
+func WithDefaultColor(color Color) Option {
+	return func(c *config) {
+		c.defaultStyle.Color = color.toLayout()
+	}
+}
+
+// WithDefaultLineHeight sets the default line height multiplier for all text elements.
+func WithDefaultLineHeight(multiplier float64) Option {
+	return func(c *config) {
+		c.defaultStyle.LineHeight = multiplier
 	}
 }
 

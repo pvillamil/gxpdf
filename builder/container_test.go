@@ -39,8 +39,9 @@ func TestContainer_Text_WithOptions(t *testing.T) {
 	if !text.Style.Bold {
 		t.Error("expected Bold = true")
 	}
-	if text.Style.Color != Red {
-		t.Errorf("expected color = Red, got %v", text.Style.Color)
+	wantColor := Red.toLayout()
+	if text.Style.Color != wantColor {
+		t.Errorf("expected color = Red (layout), got %v", text.Style.Color)
 	}
 	if text.Style.FontSize != 18 {
 		t.Errorf("expected FontSize = 18, got %f", text.Style.FontSize)
@@ -64,7 +65,7 @@ func TestContainer_Spacer_AddsElement(t *testing.T) {
 	b := testBuilder()
 	c := newContainer(b)
 
-	c.Spacer(layout.Mm(10))
+	c.Spacer(Mm(10))
 
 	if len(c.elements) != 1 {
 		t.Fatalf("expected 1 element, got %d", len(c.elements))
@@ -91,8 +92,9 @@ func TestContainer_Line_AddsElement(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected *lineElement, got %T", c.elements[0])
 	}
-	if line.cfg.color == nil || *line.cfg.color != Navy {
-		t.Errorf("line color = %v, want Navy", line.cfg.color)
+	wantColor := Navy.toLayout()
+	if line.cfg.color == nil || *line.cfg.color != wantColor {
+		t.Errorf("line color = %v, want Navy (layout)", line.cfg.color)
 	}
 	if line.cfg.width != 2 {
 		t.Errorf("line width = %f, want 2", line.cfg.width)
@@ -182,7 +184,7 @@ func TestContainer_EnsureSpace_AddsElement(t *testing.T) {
 	b := testBuilder()
 	c := newContainer(b)
 
-	c.EnsureSpace(layout.Mm(50))
+	c.EnsureSpace(Mm(50))
 
 	if len(c.elements) != 1 {
 		t.Fatalf("expected 1 element, got %d", len(c.elements))
@@ -223,7 +225,7 @@ func TestContainer_Image_AddsElement(t *testing.T) {
 	c := newContainer(b)
 
 	fakeData := []byte("FAKE_PNG_DATA")
-	c.Image(fakeData, FitWidth(layout.Mm(60)))
+	c.Image(fakeData, FitWidth(Mm(60)))
 
 	if len(c.elements) != 1 {
 		t.Fatalf("expected 1 element, got %d", len(c.elements))

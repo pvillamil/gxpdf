@@ -42,12 +42,12 @@ func (c *Container) Text(text string, opts ...TextOption) {
 }
 
 // PageNumber adds a page number element to the container. The format string
-// should contain layout.PageNumberPlaceholder and/or layout.TotalPagesPlaceholder
-// for substitution during the two-pass page number resolution.
+// should contain PageNum and/or TotalPages placeholders for substitution
+// during the two-pass page number resolution.
 //
-// A convenience format "%d / %d" using both placeholders is common:
+// Example:
 //
-//	c.PageNumber(layout.PageNumberPlaceholder + " / " + layout.TotalPagesPlaceholder,
+//	c.PageNumber(builder.PageNum + " / " + builder.TotalPages,
 //	    builder.AlignRight(), builder.FontSize(8))
 func (c *Container) PageNumber(format string, opts ...TextOption) {
 	style := applyTextOptions(c.b.defaultStyle(), opts)
@@ -109,9 +109,9 @@ func (c *Container) Line(opts ...LineOption) {
 //
 // Example:
 //
-//	c.Spacer(layout.Mm(10))  // 10mm gap
-func (c *Container) Spacer(height layout.Value) {
-	elem := newSpacerElement(height)
+//	c.Spacer(builder.Mm(10))  // 10mm gap
+func (c *Container) Spacer(height Value) {
+	elem := newSpacerElement(height.toLayout())
 	c.elements = append(c.elements, elem)
 }
 
@@ -149,9 +149,9 @@ func (c *Container) KeepTogether(fn func(*Container)) {
 //
 // Example:
 //
-//	c.EnsureSpace(layout.Mm(50))  // push to next page if < 50mm remain
-func (c *Container) EnsureSpace(height layout.Value) {
-	elem := newEnsureSpaceElement(height)
+//	c.EnsureSpace(builder.Mm(50))  // push to next page if < 50mm remain
+func (c *Container) EnsureSpace(height Value) {
+	elem := newEnsureSpaceElement(height.toLayout())
 	c.elements = append(c.elements, elem)
 }
 
