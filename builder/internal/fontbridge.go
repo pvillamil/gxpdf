@@ -159,11 +159,10 @@ func (fb *FontBridge) LineBreak(font layout.FontRef, text string, size float64, 
 
 // breakAtChars splits a single token at character boundaries to fit maxWidth.
 func (fb *FontBridge) breakAtChars(font layout.FontRef, word string, size, maxWidth float64) []string {
-	runes := []rune(word)
 	var lines []string
 	current := ""
 
-	for _, r := range runes {
+	for _, r := range word {
 		candidate := current + string(r)
 		if fb.MeasureString(font, candidate, size) <= maxWidth {
 			current = candidate
@@ -183,11 +182,10 @@ func (fb *FontBridge) breakAtChars(font layout.FontRef, word string, size, maxWi
 // breakCJK splits CJK text at individual character boundaries (every character
 // is a valid break point in CJK text), while still keeping non-CJK runs together.
 func (fb *FontBridge) breakCJK(font layout.FontRef, text string, size, maxWidth float64) []string {
-	runes := []rune(text)
 	var lines []string
 	current := ""
 
-	for _, r := range runes {
+	for _, r := range text {
 		candidate := current + string(r)
 		if fb.MeasureString(font, candidate, size) <= maxWidth {
 			current = candidate

@@ -129,7 +129,7 @@ func (b *Builder) Page(fn func(*PageBuilder)) {
 //  2. Convert page definitions to layout.PageDef values.
 //  3. Run the paginator to produce positioned blocks.
 //  4. Walk the block tree with the renderer to emit PDF content via creator.
-//  5. Serialise to bytes and return.
+//  5. Serialize to bytes and return.
 func (b *Builder) Build() ([]byte, error) {
 	if err := b.accumulatedError(); err != nil {
 		return nil, err
@@ -142,7 +142,7 @@ func (b *Builder) Build() ([]byte, error) {
 
 	pdfBytes, err := cr.Bytes()
 	if err != nil {
-		return nil, fmt.Errorf("serialise PDF: %w", err)
+		return nil, fmt.Errorf("serialize PDF: %w", err)
 	}
 	return pdfBytes, nil
 }
@@ -171,7 +171,7 @@ func (b *Builder) BuildToFile(path string) error {
 // --- Internal helpers ---
 
 // defaultStyle returns the document-level default style. Consumers (Container,
-// PageBuilder) call this to initialise per-element styles.
+// PageBuilder) call this to initialize per-element styles.
 func (b *Builder) defaultStyle() layout.Style {
 	return b.cfg.defaultStyle
 }
@@ -183,11 +183,6 @@ func (b *Builder) fontResolver() layout.FontResolver {
 }
 
 // addError appends an error to the accumulated error list.
-func (b *Builder) addError(err error) {
-	if err != nil {
-		b.errs = append(b.errs, err)
-	}
-}
 
 // accumulatedError returns all accumulated errors joined into a single error,
 // or nil if there are none.

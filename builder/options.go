@@ -1,7 +1,6 @@
 package builder
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/coregx/gxpdf/creator"
@@ -203,9 +202,3 @@ func (pd *pageDef) toLayoutPageDef(defSize layout.Size, defMargins layout.Edges)
 
 // validateFontFile validates that the given path can be loaded as a font.
 // Returns an error suitable for accumulation in the Builder error list.
-func validateFontFile(family, path string) error {
-	if _, err := os.Stat(path); err != nil {
-		return fmt.Errorf("font file for family %q not found at %q: %w", family, path, err)
-	}
-	return nil
-}

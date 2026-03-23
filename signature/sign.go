@@ -45,9 +45,6 @@ func WithTimestamp(tsaURL string) Option {
 
 // withSignTime overrides the signing time. Exported for testing only via the
 // unexported function; in production, time.Now() is always used.
-func withSignTime(t time.Time) Option {
-	return func(cfg *signConfig) { cfg.signTime = t }
-}
 
 // SignDocument signs pdfData with the given Signer and returns the signed PDF bytes.
 //

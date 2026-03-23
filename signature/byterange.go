@@ -20,13 +20,6 @@ const (
 
 // placeholderInfo records the byte offsets of the /ByteRange and /Contents fields
 // within the assembled PDF so they can be patched after the CMS is computed.
-type placeholderInfo struct {
-	// byteRangeOffset is the byte position of '[' in "/ByteRange [...]".
-	byteRangeOffset int
-
-	// contentsOffset is the byte position of '<' in "/Contents <...>".
-	contentsOffset int
-}
 
 // signResult is returned by buildSignedPDF and carries everything needed
 // to hash the byte ranges and inject the final CMS signature.
@@ -156,7 +149,7 @@ func buildSignedPDF(pdfData []byte, cfg *signConfig) (*signResult, error) {
 		byteRangeWidth, br[2],
 		byteRangeWidth, br[3],
 	)
-	copy(result[byteRangeOffset:], []byte(brStr))
+	copy(result[byteRangeOffset:], brStr)
 
 	return &signResult{
 		pdf:            result,

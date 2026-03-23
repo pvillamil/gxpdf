@@ -30,7 +30,7 @@ type RichTextFragment struct {
 	Text string
 	// Style controls the typographic and decorative properties of this fragment.
 	// FontSize, Font, Color, Bold, Italic, Underline, and Strikethrough are all
-	// honoured at the fragment level.
+	// honored at the fragment level.
 	Style Style
 	// URL, when non-empty, makes the fragment a hyperlink. The renderer will
 	// record this as a LinkArea on the containing Block.
