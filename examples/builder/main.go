@@ -14,6 +14,7 @@
 //   - Row background colors for visual grouping
 //   - Explicit PageBreak to start a new page
 //   - KeepTogether to prevent section splits across pages
+//   - Real Table API with header repeat, zebra stripes, ColSpan, cell padding
 package main
 
 import (
@@ -106,7 +107,7 @@ func main() {
 			c.Line(builder.LineColor(builder.Hex("#CCCCCC")), builder.LineWidth(0.5))
 			c.Spacer(builder.Mm(6))
 
-			// --- KPI summary row: 3 equal columns ---
+			// --- KPI Table using the real Table API ---
 			c.Text("Key Performance Indicators",
 				builder.Bold(),
 				builder.FontSize(12),
@@ -114,74 +115,55 @@ func main() {
 			)
 			c.Spacer(builder.Mm(3))
 
-			// Column header row with navy background.
-			c.Row(func(r *builder.RowBuilder) {
-				r.Col(5, func(col *builder.ColBuilder) {
-					col.Text("Metric",
-						builder.Bold(),
-						builder.FontSize(9),
-						builder.TextColor(builder.White),
-					)
-				})
-				r.Col(3, func(col *builder.ColBuilder) {
-					col.Text("Q1 2026",
-						builder.Bold(),
-						builder.FontSize(9),
-						builder.TextColor(builder.White),
-						builder.AlignCenter(),
-					)
-				})
-				r.Col(4, func(col *builder.ColBuilder) {
-					col.Text("vs Q1 2025",
-						builder.Bold(),
-						builder.FontSize(9),
-						builder.TextColor(builder.White),
-						builder.AlignRight(),
-					)
-				})
-			}, builder.RowBg(builder.Navy), builder.RowPadding(builder.Pt(4)))
-
-			c.Spacer(builder.Mm(1))
-
-			// Data rows — alternating backgrounds for readability.
 			kpiRows := []struct {
 				metric, current, delta string
-				highlight              bool
 			}{
-				{"Revenue", "$4.2M", "+18%", false},
-				{"Gross Margin", "62.4%", "+3.1pp", true},
-				{"New Customers", "1,247", "+31%", false},
-				{"Churn Rate", "2.1%", "-0.4pp", true},
-				{"NPS Score", "74", "+6pts", false},
+				{"Revenue", "$4.2M", "+18%"},
+				{"Gross Margin", "62.4%", "+3.1pp"},
+				{"New Customers", "1,247", "+31%"},
+				{"Churn Rate", "2.1%", "-0.4pp"},
+				{"NPS Score", "74", "+6pts"},
 			}
 
-			tablePad := builder.RowPadding(builder.Pt(4))
-			for _, row := range kpiRows {
-				bg := builder.White
-				if row.highlight {
-					bg = builder.LightGray
+			c.Table(func(t *builder.TableBuilder) {
+				// 5/12 metric, 3/12 current, 4/12 delta — using Fr proportions.
+				t.Columns(builder.Fr(5), builder.Fr(3), builder.Fr(4))
+
+				// Repeating header row: navy background, white text.
+				w := builder.TextColor(builder.White)
+				t.Header(func(h *builder.TableRowBuilder) {
+					h.Cell(func(c *builder.CellBuilder) {
+						c.Text("Metric", builder.Bold(), builder.FontSize(9), w)
+					}, builder.CellPadding(builder.Pt(4)))
+					h.Cell(func(c *builder.CellBuilder) {
+						c.Text("Q1 2026", builder.Bold(), builder.FontSize(9), builder.AlignCenter(), w)
+					}, builder.CellPadding(builder.Pt(4)))
+					h.Cell(func(c *builder.CellBuilder) {
+						c.Text("vs Q1 2025", builder.Bold(), builder.FontSize(9), builder.AlignRight(), w)
+					}, builder.CellPadding(builder.Pt(4)))
+				}, builder.TableRowBg(builder.Navy))
+
+				// Body rows with zebra stripes.
+				for i, row := range kpiRows {
+					r := row
+					rowIdx := i
+					t.Row(func(rb *builder.TableRowBuilder) {
+						rb.Cell(func(c *builder.CellBuilder) {
+							c.Text(r.metric, builder.FontSize(10))
+						}, builder.CellPadding(builder.Pt(4)))
+						rb.Cell(func(c *builder.CellBuilder) {
+							c.Text(r.current, builder.FontSize(10), builder.AlignCenter())
+						}, builder.CellPadding(builder.Pt(4)))
+						rb.Cell(func(c *builder.CellBuilder) {
+							c.Text(r.delta,
+								builder.FontSize(10),
+								builder.TextColor(builder.Hex("#1B7B34")),
+								builder.AlignRight(),
+							)
+						}, builder.CellPadding(builder.Pt(4)))
+					}, rowBgForIndex(rowIdx))
 				}
-
-				r := row // capture loop variable
-				c.Row(func(rb *builder.RowBuilder) {
-					rb.Col(5, func(col *builder.ColBuilder) {
-						col.Text(r.metric, builder.FontSize(10))
-					})
-					rb.Col(3, func(col *builder.ColBuilder) {
-						col.Text(r.current,
-							builder.FontSize(10),
-							builder.AlignCenter(),
-						)
-					})
-					rb.Col(4, func(col *builder.ColBuilder) {
-						col.Text(r.delta,
-							builder.FontSize(10),
-							builder.TextColor(builder.Hex("#1B7B34")), // dark green
-							builder.AlignRight(),
-						)
-					})
-				}, builder.RowBg(bg), tablePad)
-			}
+			})
 
 			c.Spacer(builder.Mm(8))
 
@@ -210,42 +192,45 @@ func main() {
 					})
 					// Gap column for visual separation.
 					r.Col(1, func(col *builder.ColBuilder) {})
-					// Right: region stats (5 columns).
+					// Right: regional stats as a mini table.
 					r.Col(5, func(col *builder.ColBuilder) {
-						col.Row(func(rr *builder.RowBuilder) {
-							rr.Col(4, func(cc *builder.ColBuilder) {
-								cc.Text("Region", builder.Bold(), builder.FontSize(9), builder.TextColor(builder.Navy))
-							})
-							rr.Col(4, func(cc *builder.ColBuilder) {
-								cc.Text("Share", builder.Bold(), builder.FontSize(9), builder.TextColor(builder.Navy), builder.AlignRight())
-							})
-							rr.Col(4, func(cc *builder.ColBuilder) {
-								cc.Text("YoY", builder.Bold(), builder.FontSize(9), builder.TextColor(builder.Navy), builder.AlignRight())
-							})
+						col.Table(func(t *builder.TableBuilder) {
+							t.Columns(builder.Fr(4), builder.Fr(4), builder.Fr(4))
+
+							t.Header(func(h *builder.TableRowBuilder) {
+								h.Cell(func(c *builder.CellBuilder) {
+									c.Text("Region", builder.Bold(), builder.FontSize(9))
+								})
+								h.Cell(func(c *builder.CellBuilder) {
+									c.Text("Share", builder.Bold(), builder.FontSize(9), builder.AlignRight())
+								})
+								h.Cell(func(c *builder.CellBuilder) {
+									c.Text("YoY", builder.Bold(), builder.FontSize(9), builder.AlignRight())
+								})
+							}, builder.TableRowBg(builder.Hex("#E8EDF4")))
+
+							regionData := []struct{ name, share, yoy string }{
+								{"NA", "54%", "+18%"},
+								{"EMEA", "27%", "+34%"},
+								{"APAC", "19%", "+22%"},
+							}
+							for _, rd := range regionData {
+								d := rd
+								t.Row(func(r *builder.TableRowBuilder) {
+									r.Cell(func(c *builder.CellBuilder) {
+										c.Text(d.name, builder.FontSize(9), builder.TextColor(builder.DarkGray))
+									}, builder.CellPadding(builder.Pt(3)))
+									r.Cell(func(c *builder.CellBuilder) {
+										c.Text(d.share, builder.FontSize(9), builder.AlignRight())
+									}, builder.CellPadding(builder.Pt(3)))
+									r.Cell(func(c *builder.CellBuilder) {
+										c.Text(d.yoy, builder.FontSize(9),
+											builder.TextColor(builder.Hex("#1B7B34")),
+											builder.AlignRight())
+									}, builder.CellPadding(builder.Pt(3)))
+								})
+							}
 						})
-						col.Spacer(builder.Mm(2))
-						col.Line(builder.LineColor(builder.LightGray), builder.LineWidth(0.5))
-						col.Spacer(builder.Mm(2))
-						regionData := []struct{ name, share, yoy string }{
-							{"NA", "54%", "+18%"},
-							{"EMEA", "27%", "+34%"},
-							{"APAC", "19%", "+22%"},
-						}
-						for _, rd := range regionData {
-							d := rd
-							col.Row(func(rr *builder.RowBuilder) {
-								rr.Col(4, func(cc *builder.ColBuilder) {
-									cc.Text(d.name, builder.FontSize(9), builder.TextColor(builder.DarkGray))
-								})
-								rr.Col(4, func(cc *builder.ColBuilder) {
-									cc.Text(d.share, builder.FontSize(9), builder.AlignRight())
-								})
-								rr.Col(4, func(cc *builder.ColBuilder) {
-									cc.Text(d.yoy, builder.FontSize(9), builder.TextColor(builder.Hex("#1B7B34")), builder.AlignRight())
-								})
-							})
-							col.Spacer(builder.Mm(1))
-						}
 					})
 				})
 			})
@@ -296,7 +281,7 @@ func main() {
 			c.Line(builder.LineColor(builder.Hex("#CCCCCC")), builder.LineWidth(0.5))
 			c.Spacer(builder.Mm(5))
 
-			// Quarterly revenue table with 6 columns.
+			// --- Quarterly revenue table using the real Table API ---
 			c.Text("Quarterly Revenue by Product Line (USD thousands)",
 				builder.Bold(),
 				builder.FontSize(11),
@@ -304,77 +289,104 @@ func main() {
 			)
 			c.Spacer(builder.Mm(3))
 
-			// Table header.
-			revPad := builder.RowPadding(builder.Pt(4))
-
-			// Revenue table header: 3+2+2+2+2+1 = 12
-			c.Row(func(r *builder.RowBuilder) {
-				headers := []string{"Product Line", "Q1", "Q2", "Q3", "Q4", "Annual"}
-				spans := []int{3, 2, 2, 2, 2, 1}
-				aligns := []builder.TextOption{
-					builder.AlignLeft(),
-					builder.AlignRight(),
-					builder.AlignRight(),
-					builder.AlignRight(),
-					builder.AlignRight(),
-					builder.AlignRight(),
-				}
-				for i, h := range headers {
-					hCopy := h
-					aCopy := aligns[i]
-					r.Col(spans[i], func(col *builder.ColBuilder) {
-						col.Text(hCopy,
-							builder.Bold(),
-							builder.FontSize(9),
-							builder.TextColor(builder.White),
-							aCopy,
-						)
-					})
-				}
-			}, builder.RowBg(builder.Navy), revPad)
-
-			// Revenue data rows.
 			revenueRows := []struct {
-				name   string
-				q1, q2, q3, q4, annual string
-				even   bool
+				name               string
+				q1, q2, q3, q4    string
+				annual             string
+				isTotal            bool
 			}{
 				{"Enterprise SaaS", "1,840", "1,920", "2,100", "2,340", "8,200", false},
-				{"SMB Platform", "1,050", "1,080", "1,140", "1,210", "4,480", true},
+				{"SMB Platform", "1,050", "1,080", "1,140", "1,210", "4,480", false},
 				{"Professional Svcs", "780", "820", "890", "940", "3,430", false},
-				{"Marketplace", "530", "610", "670", "720", "2,530", true},
-				{"Total", "4,200", "4,430", "4,800", "5,210", "18,640", false},
+				{"Marketplace", "530", "610", "670", "720", "2,530", false},
+				{"Total", "4,200", "4,430", "4,800", "5,210", "18,640", true},
 			}
 
-			for _, row := range revenueRows {
-				bg := builder.White
-				if row.even {
-					bg = builder.LightGray
-				}
+			c.Table(func(t *builder.TableBuilder) {
+				// 3/12 name, 2/12 each quarter, 1/12 annual
+				t.Columns(
+					builder.Fr(3),
+					builder.Fr(2), builder.Fr(2), builder.Fr(2), builder.Fr(2),
+					builder.Fr(1),
+				)
 
-				isTotalRow := row.name == "Total"
-				boldOpt := builder.FontSize(10)
-				if isTotalRow {
-					boldOpt = builder.Bold()
-				}
-
-				r := row
-				c.Row(func(rb *builder.RowBuilder) {
-					rb.Col(3, func(col *builder.ColBuilder) {
-						col.Text(r.name, boldOpt, builder.FontSize(10))
-					})
-					for _, val := range []string{r.q1, r.q2, r.q3, r.q4} {
-						v := val
-						rb.Col(2, func(col *builder.ColBuilder) {
-							col.Text(v, builder.FontSize(10), builder.AlignRight(), boldOpt)
-						})
+				// Repeating header.
+				wh := builder.TextColor(builder.White)
+				t.Header(func(h *builder.TableRowBuilder) {
+					headers := []string{"Product Line", "Q1", "Q2", "Q3", "Q4", "Annual"}
+					aligns := []builder.TextOption{
+						builder.AlignLeft(),
+						builder.AlignRight(), builder.AlignRight(),
+						builder.AlignRight(), builder.AlignRight(),
+						builder.AlignRight(),
 					}
-					annual := r.annual
-					rb.Col(1, func(col *builder.ColBuilder) {
-						col.Text(annual, builder.FontSize(10), builder.AlignRight(), boldOpt)
-					})
-				}, builder.RowBg(bg), revPad)
-			}
+					for i, hdr := range headers {
+						hText := hdr
+						hAlign := aligns[i]
+						h.Cell(func(c *builder.CellBuilder) {
+							c.Text(hText, builder.Bold(), builder.FontSize(9), hAlign, wh)
+						}, builder.CellPadding(builder.Pt(4)))
+					}
+				}, builder.TableRowBg(builder.Navy))
+
+				// Body rows.
+				for i, row := range revenueRows {
+					r := row
+					rowIdx := i
+					if r.isTotal {
+						// Total row: spans product name as a summary.
+						t.Row(func(rb *builder.TableRowBuilder) {
+							rb.Cell(func(c *builder.CellBuilder) {
+								c.Text(r.name, builder.Bold(), builder.FontSize(10))
+							}, builder.CellPadding(builder.Pt(4)))
+							for _, val := range []string{r.q1, r.q2, r.q3, r.q4} {
+								v := val
+								rb.Cell(func(c *builder.CellBuilder) {
+									c.Text(v, builder.Bold(), builder.FontSize(10), builder.AlignRight())
+								}, builder.CellPadding(builder.Pt(4)))
+							}
+							annual := r.annual
+							rb.Cell(func(c *builder.CellBuilder) {
+								c.Text(annual, builder.Bold(), builder.FontSize(10), builder.AlignRight())
+							}, builder.CellPadding(builder.Pt(4)))
+						}, builder.TableRowBg(builder.Hex("#E8EDF4")))
+					} else {
+						t.Row(func(rb *builder.TableRowBuilder) {
+							rb.Cell(func(c *builder.CellBuilder) {
+								c.Text(r.name, builder.FontSize(10))
+							}, builder.CellPadding(builder.Pt(4)))
+							for _, val := range []string{r.q1, r.q2, r.q3, r.q4} {
+								v := val
+								rb.Cell(func(c *builder.CellBuilder) {
+									c.Text(v, builder.FontSize(10), builder.AlignRight())
+								}, builder.CellPadding(builder.Pt(4)))
+							}
+							annual := r.annual
+							rb.Cell(func(c *builder.CellBuilder) {
+								c.Text(annual, builder.FontSize(10), builder.AlignRight())
+							}, builder.CellPadding(builder.Pt(4)))
+						}, rowBgForIndex(rowIdx))
+					}
+				}
+
+				// Footer: ColSpan for the "Summary" label + total annual.
+				t.Footer(func(f *builder.TableRowBuilder) {
+					f.Cell(func(c *builder.CellBuilder) {
+						c.Text("FY 2026 projection: $21.5M",
+							builder.Bold(),
+							builder.FontSize(9),
+							builder.TextColor(builder.DarkGray),
+						)
+					}, builder.ColSpan(5), builder.CellPadding(builder.Pt(4)))
+					f.Cell(func(c *builder.CellBuilder) {
+						c.Text("21,500",
+							builder.Bold(),
+							builder.FontSize(9),
+							builder.AlignRight(),
+						)
+					}, builder.CellPadding(builder.Pt(4)))
+				}, builder.TableRowBg(builder.LightGray))
+			})
 
 			c.Spacer(builder.Mm(8))
 
@@ -415,13 +427,25 @@ func main() {
 	fmt.Printf("File size:      %d bytes (%.1f KB)\n", info.Size(), float64(info.Size())/1024)
 	fmt.Println()
 	fmt.Println("Demonstrates:")
-	fmt.Println("  - 12-column grid layout (Row/Col with spans 2/4/6/8)")
+	fmt.Println("  - Real Table API: t.Columns(), t.Header(), t.Row(), t.Footer()")
+	fmt.Println("  - Navy header with white text via CellTextColor inheritance")
+	fmt.Println("  - Zebra stripe rows via TableRowBg")
+	fmt.Println("  - Cell padding via CellPadding()")
+	fmt.Println("  - ColSpan(5) in footer row")
+	fmt.Println("  - Nested table in a Col for regional breakdown")
+	fmt.Println("  - Header repeat on overflow pages (multi-page table)")
+	fmt.Println("  - 12-column grid layout (Row/Col)")
 	fmt.Println("  - Text styling: Bold, FontSize, TextColor, AlignCenter/Right")
 	fmt.Println("  - Header/Footer zones with PageNumber placeholders")
-	fmt.Println("  - Horizontal separator lines with custom colors")
-	fmt.Println("  - Row background colors (Navy header, LightGray zebra stripes)")
-	fmt.Println("  - Spacer for vertical rhythm")
 	fmt.Println("  - KeepTogether to prevent section splits")
 	fmt.Println("  - Explicit PageBreak for multi-page documents")
-	fmt.Println("  - Hex() colors alongside predefined color constants")
+}
+
+// rowBgForIndex returns a TableRowBg option for zebra-striped rows.
+// Even-indexed rows are white, odd-indexed rows are light gray.
+func rowBgForIndex(i int) builder.TableRowOption {
+	if i%2 == 1 {
+		return builder.TableRowBg(builder.LightGray)
+	}
+	return builder.TableRowBg(builder.White)
 }
