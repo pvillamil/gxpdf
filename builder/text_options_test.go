@@ -8,7 +8,7 @@ import (
 
 func TestBold(t *testing.T) {
 	s := layout.DefaultStyle()
-	Bold()(&s)
+	Bold().apply(&s)
 	if !s.Bold {
 		t.Error("Bold() should set Style.Bold = true")
 	}
@@ -19,7 +19,7 @@ func TestBold(t *testing.T) {
 
 func TestItalic(t *testing.T) {
 	s := layout.DefaultStyle()
-	Italic()(&s)
+	Italic().apply(&s)
 	if !s.Italic {
 		t.Error("Italic() should set Style.Italic = true")
 	}
@@ -36,7 +36,7 @@ func TestFontSize(t *testing.T) {
 	}
 	for _, tc := range tests {
 		s := layout.DefaultStyle()
-		FontSize(tc.size)(&s)
+		FontSize(tc.size).apply(&s)
 		if s.FontSize != tc.size {
 			t.Errorf("FontSize(%f) -> Style.FontSize = %f, want %f", tc.size, s.FontSize, tc.size)
 		}
@@ -45,7 +45,7 @@ func TestFontSize(t *testing.T) {
 
 func TestFontFamily(t *testing.T) {
 	s := layout.DefaultStyle()
-	FontFamily("Inter")(&s)
+	FontFamily("Inter").apply(&s)
 	if s.Font.Family != "Inter" {
 		t.Errorf("FontFamily(Inter) -> Font.Family = %q, want Inter", s.Font.Family)
 	}
@@ -53,7 +53,7 @@ func TestFontFamily(t *testing.T) {
 
 func TestTextColor(t *testing.T) {
 	s := layout.DefaultStyle()
-	TextColor(Red)(&s)
+	TextColor(Red).apply(&s)
 	want := Red.toLayout()
 	if s.Color != want {
 		t.Errorf("TextColor(Red) -> Style.Color = %v, want %v", s.Color, want)
@@ -62,7 +62,7 @@ func TestTextColor(t *testing.T) {
 
 func TestBgColor(t *testing.T) {
 	s := layout.DefaultStyle()
-	BgColor(LightGray)(&s)
+	BgColor(LightGray).apply(&s)
 	if s.Background == nil {
 		t.Fatal("BgColor should set a non-nil Background")
 	}
@@ -86,7 +86,7 @@ func TestAlignment(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			s := layout.DefaultStyle()
-			tc.opt(&s)
+			tc.opt.apply(&s)
 			if s.TextAlign != tc.want {
 				t.Errorf("%s -> TextAlign = %d, want %d", tc.name, s.TextAlign, tc.want)
 			}
@@ -96,7 +96,7 @@ func TestAlignment(t *testing.T) {
 
 func TestLineHeight(t *testing.T) {
 	s := layout.DefaultStyle()
-	LineHeight(1.6)(&s)
+	LineHeight(1.6).apply(&s)
 	if s.LineHeight != 1.6 {
 		t.Errorf("LineHeight(1.6) -> Style.LineHeight = %f, want 1.6", s.LineHeight)
 	}
@@ -104,7 +104,7 @@ func TestLineHeight(t *testing.T) {
 
 func TestUnderline(t *testing.T) {
 	s := layout.DefaultStyle()
-	Underline()(&s)
+	Underline().apply(&s)
 	if !s.Underline {
 		t.Error("Underline() should set Style.Underline = true")
 	}
@@ -112,7 +112,7 @@ func TestUnderline(t *testing.T) {
 
 func TestStrikethrough(t *testing.T) {
 	s := layout.DefaultStyle()
-	Strikethrough()(&s)
+	Strikethrough().apply(&s)
 	if !s.Strikethrough {
 		t.Error("Strikethrough() should set Style.Strikethrough = true")
 	}
@@ -120,7 +120,7 @@ func TestStrikethrough(t *testing.T) {
 
 func TestLetterSpacing(t *testing.T) {
 	s := layout.DefaultStyle()
-	LetterSpacing(2.5)(&s)
+	LetterSpacing(2.5).apply(&s)
 	if s.LetterSpacing != 2.5 {
 		t.Errorf("LetterSpacing(2.5) -> Style.LetterSpacing = %f, want 2.5", s.LetterSpacing)
 	}

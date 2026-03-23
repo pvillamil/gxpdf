@@ -2,6 +2,7 @@ package internal
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/coregx/gxpdf/creator"
 	"github.com/coregx/gxpdf/layout"
@@ -138,50 +139,77 @@ func (a *blockAdaptor) DrawText(text string, x, y float64, font layout.FontRef, 
 
 	pdfX, pdfYTop := a.toPDFCoords(x, y)
 
-	// In PDF, AddText places text at the baseline. In layout, Y is the top of
-	// the line box. We need to subtract the ascender to get the baseline Y.
-	// The ascender moves us down from top in layout (= up in PDF).
 	var ascender float64
 	if cf, ok := a.pr.fonts[font.Family]; ok {
 		ascender = cf.Ascender(size)
 	} else {
 		ascender = creator.FontAscender(resolveStandard14Name(font), size)
 	}
-	// PDF Y baseline = pageHeight - (layoutY + ascender)
 	pdfY := pdfYTop - ascender
 
-	creatorColor := creator.Color{
-		R: color.R,
-		G: color.G,
-		B: color.B,
+	creatorColor := creator.Color{R: color.R, G: color.G, B: color.B}
+
+	// If word spacing is set (justified text), render each word separately
+	// with computed X positions since creator doesn't support PDF Tw operator.
+	if options.WordSpacing > 0 {
+		a.drawJustifiedText(text, pdfX, pdfY, font, size, creatorColor, options.WordSpacing)
+		return
 	}
 
 	if cf, ok := a.pr.fonts[font.Family]; ok {
-		// Custom font path.
 		_ = a.pr.page.AddTextCustomFontColor(text, pdfX, pdfY, cf, size, creatorColor)
 	} else {
-		// Standard 14 font path.
 		fontName := resolveStandard14Name(font)
 		_ = a.pr.page.AddTextColor(text, pdfX, pdfY, fontName, size, creatorColor)
 	}
 
-	// Draw underline if requested.
 	if options.Underline {
-		underlineY := pdfY - size*0.1
-		_ = a.pr.page.DrawLine(pdfX, underlineY, pdfX+creator.MeasureText(resolveStandard14Name(font), text, size), underlineY, &creator.LineOptions{
-			Color: creatorColor,
-			Width: size * 0.05,
-		})
+		a.drawUnderline(text, pdfX, pdfY, font, size, creatorColor)
 	}
-
-	// Draw strikethrough if requested.
 	if options.Strikethrough {
-		midY := pdfY + size*0.3
-		_ = a.pr.page.DrawLine(pdfX, midY, pdfX+creator.MeasureText(resolveStandard14Name(font), text, size), midY, &creator.LineOptions{
-			Color: creatorColor,
-			Width: size * 0.05,
-		})
+		a.drawStrikethrough(text, pdfX, pdfY, font, size, creatorColor)
 	}
+}
+
+// drawJustifiedText renders text word-by-word with extra spacing between words.
+func (a *blockAdaptor) drawJustifiedText(text string, pdfX, pdfY float64, font layout.FontRef, size float64, color creator.Color, wordSpacing float64) {
+	words := strings.Fields(text)
+	curX := pdfX
+
+	fontName := resolveStandard14Name(font)
+	cf, isCustom := a.pr.fonts[font.Family]
+
+	for i, word := range words {
+		if isCustom {
+			_ = a.pr.page.AddTextCustomFontColor(word, curX, pdfY, cf, size, color)
+			curX += cf.MeasureString(word, size)
+		} else {
+			_ = a.pr.page.AddTextColor(word, curX, pdfY, fontName, size, color)
+			curX += creator.MeasureText(fontName, word, size)
+		}
+		if i < len(words)-1 {
+			// Add normal space width + extra word spacing
+			if isCustom {
+				curX += cf.MeasureString(" ", size) + wordSpacing
+			} else {
+				curX += creator.MeasureText(fontName, " ", size) + wordSpacing
+			}
+		}
+	}
+}
+
+func (a *blockAdaptor) drawUnderline(text string, pdfX, pdfY float64, font layout.FontRef, size float64, color creator.Color) {
+	fontName := resolveStandard14Name(font)
+	underlineY := pdfY - size*0.1
+	w := creator.MeasureText(fontName, text, size)
+	_ = a.pr.page.DrawLine(pdfX, underlineY, pdfX+w, underlineY, &creator.LineOptions{Color: color, Width: size * 0.05})
+}
+
+func (a *blockAdaptor) drawStrikethrough(text string, pdfX, pdfY float64, font layout.FontRef, size float64, color creator.Color) {
+	fontName := resolveStandard14Name(font)
+	midY := pdfY + size*0.3
+	w := creator.MeasureText(fontName, text, size)
+	_ = a.pr.page.DrawLine(pdfX, midY, pdfX+w, midY, &creator.LineOptions{Color: color, Width: size * 0.05})
 }
 
 // DrawRect implements layout.Renderer.

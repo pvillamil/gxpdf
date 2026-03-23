@@ -3,9 +3,9 @@ package layout
 // Conversion constants between PDF points and other units.
 // 1 PDF point = 1/72 inch.
 const (
-	ptPerMm = 2.834645669  // 1 mm = 2.834645669 pt
-	ptPerCm = 28.34645669  // 1 cm = 28.34645669 pt
-	ptPerIn = 72.0         // 1 inch = 72 pt
+	ptPerMm = 2.834645669 // 1 mm = 2.834645669 pt
+	ptPerCm = 28.34645669 // 1 cm = 28.34645669 pt
+	ptPerIn = 72.0        // 1 inch = 72 pt
 )
 
 // Unit identifies the measurement unit of a Value.

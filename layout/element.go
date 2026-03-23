@@ -71,6 +71,9 @@ type Block struct {
 	AltText string
 	// Links contains clickable regions within this block.
 	Links []LinkArea
+	// drawData holds captured rendering data for special blocks (e.g. page numbers)
+	// that need their Draw closure rebuilt after pagination. Unexported.
+	drawData *pageNumberDrawData
 }
 
 // LinkArea defines a hyperlink region within a Block.

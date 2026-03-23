@@ -79,6 +79,10 @@ func (r *RowBuilder) build(cfg rowConfig) layout.Element {
 	if cfg.bgColor != nil {
 		rowStyle.Background = cfg.bgColor
 	}
+	if cfg.padding != nil {
+		p := *cfg.padding
+		rowStyle.Padding = layout.Edges{Top: p, Right: p, Bottom: p, Left: p}
+	}
 
 	// Apply explicit height if configured.
 	rowBox := &layout.Box{

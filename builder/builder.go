@@ -1,39 +1,59 @@
 // Package builder provides a declarative, enterprise-grade API for generating
 // PDF documents with GxPDF.
 //
-// It sits on top of the layout/ engine (pure computation) and the creator/
-// package (PDF rendering), connecting them via a FontResolver bridge and a
-// layout-to-PDF renderer.
+// The builder uses a QuestPDF-inspired lambda composition pattern adapted for Go,
+// with a 12-column grid layout system and automatic pagination.
 //
 // # Quick Start
 //
-//	b := builder.NewBuilder(
-//	    builder.WithPageSize(layout.PageA4),
-//	    builder.WithMargins(layout.Mm(20), layout.Mm(15), layout.Mm(20), layout.Mm(15)),
+//	doc := builder.NewBuilder(
+//	    builder.WithPageSize(builder.A4),
+//	    builder.WithMargins(builder.Mm(20), builder.Mm(15), builder.Mm(20), builder.Mm(15)),
 //	    builder.WithTitle("My Document"),
 //	)
 //
-//	b.Page(func(p *builder.PageBuilder) {
-//	    p.Content(func(c *builder.Container) {
-//	        c.Text("Hello World", builder.Bold(), builder.FontSize(18))
-//	        c.Spacer(layout.Mm(5))
-//	        c.Text("This is the first paragraph.")
+//	doc.Page(func(page *builder.PageBuilder) {
+//	    page.Header(func(h *builder.Container) {
+//	        h.Text("Company Name", builder.Bold(), builder.FontSize(14))
+//	        h.Line()
+//	    })
+//
+//	    page.Content(func(c *builder.Container) {
+//	        c.Row(func(r *builder.RowBuilder) {
+//	            r.Col(8, func(col *builder.ColBuilder) {
+//	                col.Text("Hello World", builder.Bold(), builder.FontSize(18))
+//	            })
+//	            r.Col(4, func(col *builder.ColBuilder) {
+//	                col.Text("Right column", builder.AlignRight())
+//	            })
+//	        })
+//	        c.Spacer(builder.Mm(5))
+//	        c.Text("This is a paragraph of text.")
+//	    })
+//
+//	    page.Footer(func(f *builder.Container) {
+//	        f.Text(builder.PageNum+" / "+builder.TotalPages,
+//	            builder.AlignCenter(), builder.FontSize(8))
 //	    })
 //	})
 //
-//	pdfBytes, err := b.Build()
+//	pdfBytes, err := doc.Build()
 //
 // # Architecture
 //
 // The builder package connects three layers:
 //
-//   - builder/    — user-facing API (this package)
-//   - layout/     — pure layout engine (no PDF dependencies)
-//   - creator/    — low-level PDF rendering backend
+//   - builder/ — user-facing API (this package)
+//   - layout/  — pure computation layout engine (no PDF dependencies)
+//   - creator/ — low-level PDF rendering backend
 //
-// Error handling: all errors are accumulated and returned as a joined error
-// from Build(). This means layout definitions can be built without checking
-// errors at each step; the first Build() call surfaces all problems at once.
+// Users only import builder/ — all types (Value, Color, Size) are defined here.
+// The layout/ package is an internal computation engine not intended for direct use.
+//
+// # Error Handling
+//
+// All errors are accumulated and returned as a joined error from [Builder.Build].
+// Layout definitions can be built without checking errors at each step.
 package builder
 
 import (

@@ -133,17 +133,23 @@ Page sizes, custom dimensions, landscape orientation, and text rotation:
 ### Unreleased (on main)
 
 - **Arc Drawing** (#59) — elliptical/circular arcs with wedge/chord fill modes
+- **Declarative Builder API** — QuestPDF-inspired layout with 12-col grid, auto-pagination
 
 ### Planned
 
-#### v0.7.0 - Developer Experience & Signatures
+#### v0.7.0 - "Builder & Signatures"
 
-- **Digital Signatures** - Sign and verify PDFs with PKCS#12
-- **Fluent Text API** - Chainable text rendering
-- **Paragraph Support** - Multi-line text with wrapping
-- **Y-Cursor** - Automatic vertical positioning
-- **Simple Table API** - Easy table creation
-- **HTML to PDF** - Render WYSIWYG HTML into PDF (may be separate library)
+**In Progress**
+
+- **Declarative Builder API** (done) — QuestPDF-inspired layout with 12-col grid, auto-pagination
+  - `layout/` pure computation engine (81% coverage)
+  - `builder/` user-facing API (81% coverage)
+  - Own types (Value, Color, Size) — no layout/ import leak
+  - Font measurement bridge (Standard 14 + TTF)
+- **Tables with ColSpan/RowSpan** (planned) — enterprise-grade tables
+- **Rich Text** (planned) — mixed-style inline text
+- **Digital Signatures** (planned) — CMS/PKCS#7 + PAdES
+- **Test Coverage Push** (planned) — target 80%+ project-wide
 
 #### v0.8.0 - Advanced Features
 
@@ -151,6 +157,7 @@ Page sizes, custom dimensions, landscape orientation, and text rotation:
 - **SVG Import** - Convert SVG to PDF graphics
 - **PDF Render** - Render PDF pages to images
 - **Barcode Generation** - QR codes, Code128, etc.
+- **HTML to PDF** - Render WYSIWYG HTML into PDF (may be separate library)
 
 #### v1.0.0 - Stable Release
 
@@ -201,11 +208,15 @@ Page sizes, custom dimensions, landscape orientation, and text rotation:
 | Gradient Rendering (PDF Shading) | Done | v0.6.0 |
 | Encrypted PDF Reading | Done | v0.6.0 |
 | Arc Drawing (elliptical/circular) | Done | unreleased |
-| HTML to PDF | Planned | v0.7.0 |
+| Declarative Builder API | Done | unreleased |
+| Tables with ColSpan/RowSpan | Planned | v0.7.0 |
+| Rich Text (mixed inline styles) | Planned | v0.7.0 |
 | Digital Signatures | Planned | v0.7.0 |
-| Fluent Text API | Planned | v0.7.0 |
+| HTML to PDF | Planned | v0.8.0 |
 | PDF/A Compliance | Planned | v0.8.0 |
 | PDF Render to Image | Planned | v0.8.0 |
+| SVG Import | Planned | v0.8.0 |
+| Barcode / QR Code | Planned | v0.8.0 |
 
 ## Backlog
 
@@ -220,8 +231,11 @@ Page sizes, custom dimensions, landscape orientation, and text rotation:
 | feat-078 | Gradient Rendering | **P1** | **Done** | Full PDF Shading (Type 2/3) for gradients (#57) |
 | feat-042 | Encrypted PDF Reading | **P1** | **Done** | RC4/AES-128 with password support |
 | feat-079 | Arc Drawing | **P2** | **Done** | Elliptical/circular arcs with wedge/chord (#59) |
+| feat-076 | Declarative Builder API | **P1** | **Done** | QuestPDF-inspired layout, 12-col grid, auto-pagination |
+| feat-077 | Tables ColSpan/RowSpan | **P1** | Backlog | Enterprise-grade table layout in builder |
+| feat-081 | Rich Text | **P1** | Backlog | Mixed-style inline text elements |
+| feat-037 | Digital Signatures | **P1** | Backlog | Sign and verify PDFs (CMS/PKCS#7 + PAdES) |
 | feat-080 | HTML to PDF | **P2** | Backlog | Render WYSIWYG HTML via GxPDF |
-| feat-037 | Digital Signatures | **P2** | Backlog | Sign and verify PDFs |
 | feat-062 | Fluent Text API | P3 | Backlog | Chainable text methods |
 | feat-063 | Paragraph | P3 | Backlog | Multi-line text container |
 | feat-064 | Y-Cursor | P3 | Backlog | Auto vertical positioning |
@@ -234,9 +248,13 @@ Page sizes, custom dimensions, landscape orientation, and text rotation:
 
 ## Architecture
 
-GxPDF uses Domain-Driven Design (DDD):
+GxPDF uses Domain-Driven Design (DDD) with a three-layer generation stack:
 
 ```
+builder/        — User-facing declarative API
+layout/         — Pure computation layout engine (zero PDF deps)
+creator/        — Low-level PDF primitives
+
 internal/
 ├── domain/         # Pure business logic
 ├── application/    # Use cases

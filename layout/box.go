@@ -32,8 +32,12 @@ func (b *Box) PlanLayout(area Area) Plan {
 	bw := s.Border.widths()
 
 	// Resolve explicit width if set.
+	// Percentage widths are NOT re-resolved here because the parent's
+	// horizontal layout already resolved them and passed the result as
+	// area.Width. Re-resolving would double-apply the percentage
+	// (e.g., Pct(16.7) of 82pt = 13.7pt instead of using the 82pt directly).
 	availWidth := area.Width - margin.Horizontal()
-	if !b.Width.IsAuto() && b.Width.Amount > 0 {
+	if !b.Width.IsAuto() && b.Width.Amount > 0 && b.Width.Unit != UnitPct {
 		resolved := b.Width.Resolve(area.Width, fontSize)
 		if resolved < availWidth {
 			availWidth = resolved
@@ -97,7 +101,8 @@ func (b *Box) PlanLayout(area Area) Plan {
 		Height:   consumed + padding.Vertical() + bw.Vertical(),
 		Children: childBlocks,
 	}
-	outerBlock.Draw = buildBoxDraw(s, outerBlock.X, outerBlock.Y, outerBlock.Width, outerBlock.Height)
+	// Draw at (0,0) relative to block origin — renderer adds block.X/Y.
+	outerBlock.Draw = buildBoxDraw(s, 0, 0, outerBlock.Width, outerBlock.Height)
 
 	status := Full
 	if overflow != nil {

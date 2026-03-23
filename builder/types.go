@@ -12,7 +12,7 @@ type Value struct {
 type unit int
 
 const (
-	unitPt  unit = iota
+	unitPt unit = iota
 	unitMm
 	unitCm
 	unitIn

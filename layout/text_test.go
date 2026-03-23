@@ -250,14 +250,14 @@ func TestText_MaxWidth(t *testing.T) {
 
 func TestComputeTextX(t *testing.T) {
 	tests := []struct {
-		name        string
-		align       Align
-		lineWidth   float64
-		availWidth  float64
-		line        string
-		isLast      bool
-		wantX       float64
-		wantWS      float64
+		name       string
+		align      Align
+		lineWidth  float64
+		availWidth float64
+		line       string
+		isLast     bool
+		wantX      float64
+		wantWS     float64
 	}{
 		{
 			name: "Left", align: AlignLeft,

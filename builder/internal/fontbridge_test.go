@@ -243,12 +243,12 @@ func TestFontBridge_IsCJKRune(t *testing.T) {
 		{'A', false},
 		{'z', false},
 		{'1', false},
-		{'你', true},  // CJK Unified Ideograph
-		{'あ', true},  // Hiragana
-		{'ア', true},  // Katakana
-		{'가', true},  // Hangul
-		{0x4E00, true},  // First CJK Unified Ideograph
-		{0x9FFF, true},  // Last CJK Unified Ideograph (basic)
+		{'你', true},      // CJK Unified Ideograph
+		{'あ', true},      // Hiragana
+		{'ア', true},      // Katakana
+		{'가', true},      // Hangul
+		{0x4E00, true},   // First CJK Unified Ideograph
+		{0x9FFF, true},   // Last CJK Unified Ideograph (basic)
 		{0x10000, false}, // Outside CJK range
 	}
 	for _, tc := range tests {

@@ -229,16 +229,30 @@ func ResolvePageNumbers(pages []PageLayout) {
 	}
 }
 
-// resolveBlockPageNumbers recursively replaces page-number placeholder
-// closures. Since Draw closures are opaque, page numbers in Text blocks
-// are handled by the pageNumberBlock wrapper type (below).
+// resolveBlockPageNumbers recursively finds page-number blocks and updates
+// the shared textPtr that their Draw closures read from.
 func resolveBlockPageNumbers(blocks []Block, pageNum, totalPages int) {
 	for i := range blocks {
-		if blocks[i].Tag == "__pagenumber__" {
-			text := blocks[i].AltText // store format string in AltText field
-			text = strings.ReplaceAll(text, PageNumberPlaceholder, fmt.Sprintf("%d", pageNum))
-			text = strings.ReplaceAll(text, TotalPagesPlaceholder, fmt.Sprintf("%d", totalPages))
-			blocks[i].AltText = text
+		if blocks[i].Tag == "__pagenumber__" && blocks[i].AltText != "" {
+			resolved := blocks[i].AltText
+			resolved = strings.ReplaceAll(resolved, PageNumberPlaceholder, fmt.Sprintf("%d", pageNum))
+			resolved = strings.ReplaceAll(resolved, TotalPagesPlaceholder, fmt.Sprintf("%d", totalPages))
+			blocks[i].AltText = resolved
+
+			// Replace the Draw closure with one that uses the resolved text.
+			// The old closure captured styling info — we rebuild it here.
+			if blocks[i].drawData != nil {
+				dd := blocks[i].drawData
+				// Draw at (0,0) — the block's X/Y handles positioning.
+				// Update block.X to the new alignment offset for the resolved text.
+				w := dd.fonts.MeasureString(dd.font, resolved, dd.size)
+				rx, _ := computeTextX(dd.align, w, dd.areaWidth, resolved, true)
+				blocks[i].X = rx
+				blocks[i].Width = w
+				blocks[i].Draw = func(r Renderer) {
+					r.DrawText(resolved, 0, 0, dd.font, dd.size, dd.color, TextDrawOptions{})
+				}
+			}
 		}
 		if len(blocks[i].Children) > 0 {
 			resolveBlockPageNumbers(blocks[i].Children, pageNum, totalPages)
@@ -261,13 +275,60 @@ type PageNumber struct {
 	Fonts FontResolver
 }
 
-// PlanLayout implements Element. It creates a Text plan using the format
-// string as content (placeholders will be replaced later).
+// pageNumberDrawData holds the styling data needed to rebuild a page number
+// Draw closure after ResolvePageNumbers replaces placeholder text.
+type pageNumberDrawData struct {
+	fonts     FontResolver
+	font      FontRef
+	size      float64
+	color     Color
+	align     Align
+	areaWidth float64
+}
+
+// PlanLayout implements Element. It creates blocks tagged with "__pagenumber__"
+// whose Draw closures are rebuilt by ResolvePageNumbers after pagination.
 func (pn *PageNumber) PlanLayout(area Area) Plan {
-	t := &Text{
-		Content: pn.Format,
-		Style:   pn.Style,
-		Fonts:   pn.Fonts,
+	s := pn.Style.effective()
+	fontSize := s.FontSize
+	lineSpacing := fontSize * s.LineHeight
+
+	resolver := pn.Fonts
+	if resolver == nil {
+		resolver = &MockFontResolver{}
 	}
-	return t.PlanLayout(area)
+	font := s.Font
+
+	lineWidth := resolver.MeasureString(font, pn.Format, fontSize)
+	xPos, _ := computeTextX(s.TextAlign, lineWidth, area.Width, pn.Format, true)
+
+	dd := &pageNumberDrawData{
+		fonts:     resolver,
+		font:      font,
+		size:      fontSize,
+		color:     s.Color,
+		align:     s.TextAlign,
+		areaWidth: area.Width,
+	}
+
+	// Initial Draw uses placeholder text; ResolvePageNumbers replaces it.
+	capturedFormat := pn.Format
+	block := Block{
+		X:        xPos,
+		Y:        0,
+		Width:    lineWidth,
+		Height:   lineSpacing,
+		Tag:      "__pagenumber__",
+		AltText:  pn.Format,
+		drawData: dd,
+		Draw: func(r Renderer) {
+			r.DrawText(capturedFormat, 0, 0, dd.font, dd.size, dd.color, TextDrawOptions{})
+		},
+	}
+
+	return Plan{
+		Status:   Full,
+		Consumed: lineSpacing,
+		Blocks:   []Block{block},
+	}
 }

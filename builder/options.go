@@ -88,12 +88,12 @@ func WithFont(family string, data []byte) Option {
 		if err != nil {
 			return
 		}
-		defer os.Remove(f.Name())
+		defer func() { _ = os.Remove(f.Name()) }()
 		if _, err := f.Write(data); err != nil {
-			f.Close()
+			_ = f.Close()
 			return
 		}
-		f.Close()
+		_ = f.Close()
 
 		font, err := creator.LoadFont(f.Name())
 		if err != nil {

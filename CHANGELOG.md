@@ -15,6 +15,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Chord fill: straight line between arc endpoints
   - Full styling support: stroke, fill, gradient, opacity, dash patterns
   - Arc-to-cubic-Bezier approximation (1 segment per 90°, Goldapp/Riskus formula)
+- **Declarative Builder API** - QuestPDF-inspired document builder with automatic pagination
+  - `builder.NewBuilder()` with functional options (page size, margins, fonts, metadata)
+  - 12-column grid layout via `Row()`/`Col()` with automatic page breaks
+  - Text styling via functional options: `Bold()`, `Italic()`, `FontSize()`, `TextColor()`, `BgColor()`, `AlignCenter()`, `AlignRight()`, `AlignJustify()`, `Underline()`, `Strikethrough()`, `LetterSpacing()`, `LineHeight()`
+  - Page structure: `Header()`, `Content()`, `Footer()` with auto-repeating headers/footers
+  - Content elements: `Text()`, `PageNumber()`, `Row()`, `Image()`, `Line()`, `Spacer()`
+  - Page break control: `PageBreak()`, `KeepTogether()`, `EnsureSpace()`
+  - Page numbers with two-pass placeholder resolution (`PageNum`, `TotalPages` constants)
+  - 13 predefined colors + `Hex()` parser + `RGB()` / `RGB255()` constructors
+  - Unit system: `Mm()`, `Cm()`, `In()`, `Pt()`, `Pct()`, `Fr()` — no `layout/` import needed
+  - Per-page size and margin overrides via `page.Size()` / `page.Margins()`
+  - Row options: `RowHeight()`, `RowBg()` for explicit height and background color
+  - Image options: `FitWidth()`, `FitHeight()` for constrained image sizing
+  - Line options: `LineColor()`, `LineWidth()` for horizontal rules
+  - Custom font registration: `WithFont()` (bytes) and `WithFontFile()` (path)
+  - `Build()` → `[]byte`, `BuildTo(io.Writer)`, `BuildToFile(path)` output methods
+  - Pure computation layout engine (`layout/`) with zero PDF dependencies
+  - Font measurement bridge for Standard 14 + custom TTF fonts
 
 ### Changed
 - **CI**: Codecov action upgraded from v4 to v5 with OIDC authentication

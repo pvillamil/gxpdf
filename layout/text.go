@@ -58,8 +58,6 @@ func (t *Text) PlanLayout(area Area) Plan {
 		xPos, wordSpacing := computeTextX(s.TextAlign, lineWidth, area.Width, line, i == len(lines)-1)
 
 		captureLine := line
-		captureX := xPos
-		captureY := cursorY
 		captureFont := font
 		captureSize := fontSize
 		captureColor := s.Color
@@ -72,7 +70,9 @@ func (t *Text) PlanLayout(area Area) Plan {
 			Width:  lineWidth,
 			Height: lineSpacing,
 			Draw: func(r Renderer) {
-				r.DrawText(captureLine, captureX, captureY, captureFont, captureSize, captureColor, TextDrawOptions{
+				// Draw at (0,0) relative to the block origin.
+				// The renderer adds block.X and block.Y automatically.
+				r.DrawText(captureLine, 0, 0, captureFont, captureSize, captureColor, TextDrawOptions{
 					LetterSpacing: captureSpacing,
 					WordSpacing:   captureWS,
 					Underline:     s.Underline,
