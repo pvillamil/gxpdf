@@ -63,6 +63,10 @@ func (t *Text) PlanLayout(area Area) Plan {
 		captureColor := s.Color
 		captureSpacing := s.LetterSpacing
 		captureWS := wordSpacing
+		// Half-leading: distribute leading (lineSpacing - fontSize) equally above
+		// and below the text, per standard typographic practice. Without this,
+		// all leading goes below and text appears top-heavy in table cells.
+		halfLeading := (lineSpacing - fontSize) / 2
 
 		block := Block{
 			X:      xPos,
@@ -70,9 +74,9 @@ func (t *Text) PlanLayout(area Area) Plan {
 			Width:  lineWidth,
 			Height: lineSpacing,
 			Draw: func(r Renderer) {
-				// Draw at (0,0) relative to the block origin.
-				// The renderer adds block.X and block.Y automatically.
-				r.DrawText(captureLine, 0, 0, captureFont, captureSize, captureColor, TextDrawOptions{
+				// Draw at (0, halfLeading) — shift text down by half the leading
+				// for optical vertical centering within the line box.
+				r.DrawText(captureLine, 0, halfLeading, captureFont, captureSize, captureColor, TextDrawOptions{
 					LetterSpacing: captureSpacing,
 					WordSpacing:   captureWS,
 					Underline:     s.Underline,
