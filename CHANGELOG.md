@@ -33,6 +33,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `Build()` → `[]byte`, `BuildTo(io.Writer)`, `BuildToFile(path)` output methods
   - Pure computation layout engine (`layout/`) with zero PDF dependencies
   - Font measurement bridge for Standard 14 + custom TTF fonts
+- **Enterprise Tables** - Full-featured table layout in Builder API
+  - `Table()` with `Columns()`, `Header()`, `Row()`, `Footer()` builders
+  - Column widths: `Auto` (content-driven), `Fixed`, `Pct`, `Fr` (proportional)
+  - `ColSpan` and `RowSpan` for cell merging
+  - Header repeat on overflow pages (automatic)
+  - Page split between rows with header/footer preservation
+  - Cell vertical alignment: `CellVAlignTop()`, `CellVAlignMiddle()`, `CellVAlignBottom()`
+  - Cell styling: `CellPadding()`, `CellBg()`, `CellBorder()`, `CellTextColor()`
+  - Row styling: `TableRowBg()` for zebra stripes and header backgrounds
+  - Nested tables supported (any Element in cells)
+- **Rich Text** - Multi-style inline text in Builder API
+  - `RichText()` with `Span()` and `Link()` for mixed bold/italic/color within a paragraph
+  - Baseline alignment for mixed font sizes
+  - Justified text with proportional space distribution
+  - URL link areas for hyperlink fragments
+- **Digital Signatures** - Sign and verify PDFs (PAdES B-B and B-T)
+  - `signature.SignDocument(pdfData, signer, opts...)` — sign any PDF
+  - `signature.Verify(pdfData)` — extract and verify all signatures
+  - `signature.NewLocalSigner(key, certs)` — RSA-SHA256 and ECDSA-SHA256
+  - CMS/PKCS#7 SignedData with ESS signing-certificate-v2 (PAdES B-B conformance)
+  - RFC 3161 timestamping via `WithTimestamp(tsaURL)` (PAdES B-T)
+  - Incremental PDF update preserving existing content and signatures
+  - ByteRange placeholder mechanism with SHA-256 hash
+  - Zero external dependencies (Go stdlib only)
+  - Options: `WithReason()`, `WithLocation()`, `WithContactInfo()`, `WithTimestamp()`
+- **Text Measurement API** - Exported font metrics from `creator/`
+  - `MeasureText()`, `FontAscender()`, `FontDescender()`, `FontCapHeight()`, `FontLineHeight()` for Standard 14 fonts
+  - `CustomFont.Ascender()`, `.Descender()`, `.LineHeight()`, `.CapHeight()` for TTF fonts
+
+### Fixed
+- **Half-leading** - Text optically centered in line boxes (CSS half-leading model)
+- **Pct double-resolution** - Column widths no longer double-applied in nested boxes
 
 ### Changed
 - **CI**: Codecov action upgraded from v4 to v5 with OIDC authentication

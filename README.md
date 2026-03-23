@@ -69,6 +69,34 @@ doc.Page(func(page *builder.PageBuilder) {
 pdfBytes, err := doc.Build()
 ```
 
+### Digital Signatures (NEW)
+
+Sign and verify PDF documents with zero external dependencies:
+
+```go
+import "github.com/coregx/gxpdf/signature"
+
+// Generate or load your certificate
+key, cert, _ := signature.GenerateTestCertificate()
+signer, _ := signature.NewLocalSigner(key, []*x509.Certificate{cert})
+
+// Sign a PDF
+signed, err := signature.SignDocument(pdfBytes, signer,
+    signature.WithReason("Approved"),
+    signature.WithLocation("Moscow"),
+)
+
+// Verify signatures
+infos, err := signature.Verify(signed)
+fmt.Println(infos[0].SignedBy, infos[0].Valid) // "CN=Test" true
+```
+
+- **PAdES B-B** — CMS/PKCS#7 with ESS signing-certificate-v2
+- **PAdES B-T** — RFC 3161 timestamping via `WithTimestamp(tsaURL)`
+- **RSA + ECDSA** — SHA-256 by default, SHA-384/512 configurable
+- **Verification** — ByteRange hash + CMS cryptographic verification
+- **Incremental update** — preserves existing content and prior signatures
+
 ### PDF Creation (Creator API)
 - **Text & Typography** - Rich text with multiple fonts, styles, and colors
 - **Graphics** - Lines, rectangles, circles, polygons, ellipses, arcs (wedge/chord), cubic and quadratic Bezier curves
@@ -351,11 +379,12 @@ fmt.Printf("Pages: %d\n", doc.PageCount())
 
 ```
 github.com/coregx/gxpdf
-├── gxpdf.go          # Main entry point
-├── builder/          # Declarative Builder API (NEW)
-├── layout/           # Pure computation layout engine
+├── gxpdf.go          # Main entry point (Open, OpenWithPassword)
+├── builder/          # Declarative Builder API (12-col grid, tables, rich text)
+├── layout/           # Pure computation layout engine (zero PDF deps)
+├── signature/        # Digital signatures (PAdES B-B/B-T, verify)
 ├── export/           # Export formats (CSV, JSON, Excel)
-├── creator/          # PDF creation API
+├── creator/          # Low-level PDF creation API
 │   └── forms/        # Interactive form fields
 ├── logging/          # Configurable debug logging
 └── internal/         # Private implementation

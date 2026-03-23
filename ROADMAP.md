@@ -134,29 +134,34 @@ Page sizes, custom dimensions, landscape orientation, and text rotation:
 
 - **Arc Drawing** (#59) — elliptical/circular arcs with wedge/chord fill modes
 - **Declarative Builder API** — QuestPDF-inspired layout with 12-col grid, auto-pagination
+- **Enterprise Tables** — colspan, rowspan, header repeat, page split
+- **Rich Text** — multi-style inline text with mixed bold/italic/color
+- **Digital Signatures** — PAdES B-B/B-T, RSA + ECDSA, zero external deps
 
 ### Planned
 
 #### v0.7.0 - "Builder & Signatures"
 
-**In Progress**
+**Done (unreleased on main)**
 
-- **Declarative Builder API** (done) — QuestPDF-inspired layout with 12-col grid, auto-pagination
-  - `layout/` pure computation engine (81% coverage)
-  - `builder/` user-facing API (81% coverage)
+- **Declarative Builder API** — QuestPDF-inspired layout with 12-col grid, auto-pagination
+  - `layout/` pure computation engine (85.7% coverage)
+  - `builder/` user-facing API (80.6% coverage)
   - Own types (Value, Color, Size) — no layout/ import leak
   - Font measurement bridge (Standard 14 + TTF)
-- **Tables with ColSpan/RowSpan** (planned) — enterprise-grade tables
-- **Rich Text** (planned) — mixed-style inline text
-- **Digital Signatures** (planned) — CMS/PKCS#7 + PAdES
-- **Test Coverage Push** (planned) — target 80%+ project-wide
+- **Enterprise Tables** — colspan, rowspan, header repeat on overflow, page split, auto/fixed/fr columns
+- **Rich Text** — mixed-style inline text with baseline alignment, justify
+- **Digital Signatures** — PAdES B-B + B-T, CMS/PKCS#7, RFC 3161, zero deps (80.7% coverage)
+- **Text Measurement API** — exported font metrics (Standard 14 + TTF)
+- **Half-leading** — optically centered text in line boxes
 
-#### v0.8.0 - Advanced Features
+#### v0.8.0 - "Generation Platform"
 
-- **PDF/A Compliance** - Archival format support
-- **SVG Import** - Convert SVG to PDF graphics
-- **PDF Render** - Render PDF pages to images
-- **Barcode Generation** - QR codes, Code128, etc.
+- **HTML to PDF** — render HTML/CSS into PDF via Builder API
+- **QR Code + Barcode** — QR, Code128, EAN-13 generation
+- **PDF/A Compliance** — archival format (A-1b, A-2b)
+- **PDF/UA Accessibility** — tagged PDF for screen readers
+- **Ready Components** — invoice, report, letter templates
 - **HTML to PDF** - Render WYSIWYG HTML into PDF (may be separate library)
 
 #### v1.0.0 - Stable Release

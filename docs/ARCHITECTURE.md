@@ -15,6 +15,7 @@ github.com/coregx/gxpdf
 ├── builder/              # Declarative Builder API (high-level, user-facing)
 │   └── internal/         # Builder internals (font bridge, PDF renderer)
 ├── layout/               # Pure computation layout engine (zero PDF dependencies)
+├── signature/            # Digital signatures (PAdES B-B/B-T, CMS/PKCS#7, verify)
 ├── creator/              # PDF creation API (low-level primitives)
 │   └── forms/            # Interactive form fields (AcroForm)
 ├── export/               # Export formats (CSV, JSON, Excel)
@@ -465,18 +466,19 @@ go test -bench=. -benchmem ./...
 
 ## Future Roadmap
 
-### v0.7.0 (In Progress)
+### v0.7.0 "Builder & Signatures" (Done, unreleased)
 
 - [x] Declarative Builder API (layout/ + builder/)
-- [ ] Tables with ColSpan/RowSpan
-- [ ] Rich Text (mixed inline styles)
-- [ ] Digital Signatures (CMS/PKCS#7 + PAdES)
-- [ ] Test coverage push to 80%+
+- [x] Enterprise Tables (ColSpan, RowSpan, header repeat, page split)
+- [x] Rich Text (mixed-style inline text with baseline alignment)
+- [x] Digital Signatures (PAdES B-B/B-T, CMS/PKCS#7, RSA + ECDSA, zero deps)
+- [x] Text Measurement API (Standard 14 + TTF font metrics)
+- [x] Coverage 80%+ on all new packages (layout 85.7%, builder 80.6%, signature 80.7%)
 
-### v0.8.0 (Planned)
+### v0.8.0 "Generation Platform" (Planned)
 
-- [ ] PDF/A compliance
-- [ ] SVG import
-- [ ] PDF rendering (to images)
-- [ ] Barcode / QR code generation
-- [ ] HTML to PDF
+- [ ] HTML to PDF (separate module, uses Builder API)
+- [ ] QR Code + Barcode (Code128, EAN-13)
+- [ ] PDF/A compliance (A-1b, A-2b)
+- [ ] PDF/UA accessibility (tagged PDF)
+- [ ] Ready components (invoice, report, letter templates)
