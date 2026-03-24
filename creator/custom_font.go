@@ -132,3 +132,33 @@ func (f *CustomFont) ID() string {
 	}
 	return f.ttfFont.FilePath
 }
+
+// Ascender returns the ascender height in points at the given size.
+//
+// The ascender is the distance from the baseline to the top of the tallest
+// character. Uses the font's hhea table Ascender value.
+func (f *CustomFont) Ascender(size float64) float64 {
+	return float64(f.ttfFont.Ascender) * size / float64(f.ttfFont.UnitsPerEm)
+}
+
+// Descender returns the descender depth in points at the given size.
+//
+// The descender is the distance from the baseline to the bottom of descending
+// characters. This value is negative. Uses the font's hhea table Descender value.
+func (f *CustomFont) Descender(size float64) float64 {
+	return float64(f.ttfFont.Descender) * size / float64(f.ttfFont.UnitsPerEm)
+}
+
+// LineHeight returns the natural line height in points at the given size.
+//
+// Calculated as (Ascender - Descender) * size / UnitsPerEm.
+func (f *CustomFont) LineHeight(size float64) float64 {
+	return float64(f.ttfFont.Ascender-f.ttfFont.Descender) * size / float64(f.ttfFont.UnitsPerEm)
+}
+
+// CapHeight returns the cap height in points at the given size.
+//
+// The cap height is the height of uppercase letters like 'H'.
+func (f *CustomFont) CapHeight(size float64) float64 {
+	return float64(f.ttfFont.CapHeight) * size / float64(f.ttfFont.UnitsPerEm)
+}

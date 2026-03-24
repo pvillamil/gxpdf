@@ -2,8 +2,8 @@
 
 Technical architecture overview of the GxPDF PDF library.
 
-**Version**: v0.1.0+
-**Last Updated**: 2026-01-30
+**Version**: v0.7.0+
+**Last Updated**: 2026-03-23
 
 ## Project Structure
 
@@ -12,7 +12,11 @@ github.com/coregx/gxpdf
 ├── gxpdf.go              # Main public API entry point
 ├── cmd/gxpdf/            # CLI application
 │   └── commands/         # CLI command implementations
-├── creator/              # PDF creation API (high-level)
+├── builder/              # Declarative Builder API (high-level, user-facing)
+│   └── internal/         # Builder internals (font bridge, PDF renderer)
+├── layout/               # Pure computation layout engine (zero PDF dependencies)
+├── signature/            # Digital signatures (PAdES B-B/B-T, CMS/PKCS#7, verify)
+├── creator/              # PDF creation API (low-level primitives)
 │   └── forms/            # Interactive form fields (AcroForm)
 ├── export/               # Export formats (CSV, JSON, Excel)
 └── internal/             # Private implementation
@@ -31,22 +35,87 @@ github.com/coregx/gxpdf
     └── writer/           # PDF file generation
 ```
 
-## Component Overview
+## Generation Stack: Three-Layer Architecture
 
-### Public API Layer
+GxPDF provides two complementary generation APIs that share the same underlying rendering engine:
 
-#### Main Entry Point (`gxpdf.go`)
-
-```go
-// Open and extract from existing PDFs
-doc, _ := gxpdf.Open("document.pdf")
-tables := doc.ExtractTables()
-text := doc.Page(0).Text()
+```
+Layer 3: builder/    — User-facing declarative API
+Layer 2: layout/     — Pure computation layout engine
+Layer 1: creator/    — Low-level PDF primitives
 ```
 
-#### Creator API (`creator/`)
+Each layer has a clear responsibility and strict dependency direction — upper layers depend on lower layers, never the reverse.
 
-High-level PDF creation with fluent interface:
+### Layer 3: builder/ — Declarative API
+
+The `builder` package is the recommended entry point for document generation. It provides a QuestPDF-inspired API where documents are expressed as nested closures. The engine handles page breaks, header/footer repetition, and two-pass page number resolution automatically.
+
+```go
+doc := builder.NewBuilder(
+    builder.WithPageSize(builder.A4),
+    builder.WithMargins(builder.Mm(20), builder.Mm(15), builder.Mm(20), builder.Mm(15)),
+    builder.WithTitle("Annual Report"),
+)
+
+doc.Page(func(page *builder.PageBuilder) {
+    page.Header(func(h *builder.Container) {
+        h.Text("ACME Corporation", builder.Bold(), builder.FontSize(14))
+        h.Line()
+    })
+    page.Content(func(c *builder.Container) {
+        c.Row(func(r *builder.RowBuilder) {
+            r.Col(8, func(col *builder.ColBuilder) {
+                col.Text("Main content area")
+            })
+            r.Col(4, func(col *builder.ColBuilder) {
+                col.Text("Sidebar", builder.TextColor(builder.Gray))
+            })
+        })
+    })
+    page.Footer(func(f *builder.Container) {
+        f.PageNumber(builder.PageNum+" of "+builder.TotalPages,
+            builder.AlignCenter(), builder.FontSize(8))
+    })
+})
+
+pdfBytes, err := doc.Build()
+```
+
+**Key concepts**:
+- `Builder` — document entry point, holds document-level config
+- `PageBuilder` — defines Header/Content/Footer zones for a logical page
+- `Container` — universal content receiver (text, rows, images, lines, spacers)
+- `RowBuilder` / `ColBuilder` — 12-column grid with proportional sizing
+- `Value` — unit-aware dimension type (`Mm`, `Cm`, `In`, `Pt`, `Pct`, `Fr`)
+- `Color` — RGB color type with 13 predefined constants and `Hex()` parser
+- All errors are accumulated and returned as a joined error from `Build()`
+
+**Dependency rule**: `builder/` imports `layout/` and `creator/`. It never exposes `layout/` types in its public API — users work exclusively with `builder.Value`, `builder.Color`, `builder.Size`.
+
+### Layer 2: layout/ — Pure Computation Engine
+
+The `layout` package is a zero-dependency layout engine. It takes a tree of `Element` values, computes their positions, and produces positioned `Block` values ready for rendering. It has no knowledge of PDF format, file I/O, or font loading.
+
+**Core types**:
+- `Element` — interface with `PlanLayout(Area) Plan`
+- `Plan` — result of layout: status (Full/Partial/Nothing), consumed height, list of Blocks
+- `Block` — a positioned rectangle with a `Draw(Renderer)` callback
+- `Renderer` — interface for drawing primitives (text, lines, images, rectangles)
+- `Paginator` — walks `PageDef` elements, splits content across physical pages
+- `FontResolver` — interface for font metric queries (standard 14 + TTF)
+- `Style` — typography (font family, size, weight, color, alignment, line height)
+
+**Pagination algorithm**:
+1. For each `PageDef`, render header and footer into fixed zones.
+2. Feed content elements to `PlanLayout` with the available body area.
+3. When an element returns `Nothing` (does not fit), flush the current page and continue on a new one.
+4. `KeepTogether` boxes are pushed whole to the next page if they do not fit.
+5. After all pages are resolved, a second pass replaces `PageNum`/`TotalPages` placeholders with actual values.
+
+### Layer 1: creator/ — PDF Primitives
+
+The `creator` package writes PDF objects, content streams, and cross-reference tables. It is the rendering backend for both the Builder API and direct low-level use.
 
 ```go
 c := creator.New()
@@ -63,7 +132,7 @@ c.WriteToFile("output.pdf")
 
 **Features**:
 - Text rendering with Standard 14 fonts
-- Graphics (lines, rectangles, circles, polygons, arcs, Bézier curves)
+- Graphics (lines, rectangles, circles, polygons, arcs, Bezier curves)
 - Linear and radial gradients (PDF Shading Type 2/3 with multi-stop support)
 - JPEG/PNG image embedding
 - Tables with merged cells
@@ -73,6 +142,19 @@ c.WriteToFile("output.pdf")
 - Interactive forms (text fields, checkboxes, dropdowns)
 - RC4/AES encryption
 - Watermarks
+
+## Component Overview
+
+### Public API Layer
+
+#### Main Entry Point (`gxpdf.go`)
+
+```go
+// Open and extract from existing PDFs
+doc, _ := gxpdf.Open("document.pdf")
+tables := doc.ExtractTables()
+text := doc.Page(0).Text()
+```
 
 #### Export API (`export/`)
 
@@ -112,11 +194,11 @@ Stream compression/decompression:
 
 | Codec | Description | Status |
 |-------|-------------|--------|
-| FlateDecode | zlib compression (most common) | ✅ Implemented |
-| DCTDecode | JPEG image data | ✅ Implemented |
-| ASCII85Decode | ASCII encoding | ⏳ Planned |
-| ASCIIHexDecode | Hexadecimal encoding | ⏳ Planned |
-| LZWDecode | LZW compression (legacy) | ⏳ Planned |
+| FlateDecode | zlib compression (most common) | Implemented |
+| DCTDecode | JPEG image data | Implemented |
+| ASCII85Decode | ASCII encoding | Planned |
+| ASCIIHexDecode | Hexadecimal encoding | Planned |
+| LZWDecode | LZW compression (legacy) | Planned |
 
 **Note**: FlateDecode and DCTDecode cover 95%+ of PDF files. Legacy codecs planned for v0.2.0.
 
@@ -226,10 +308,10 @@ PDF encryption support:
 
 | Algorithm | Key Length | Status |
 |-----------|------------|--------|
-| RC4 | 40-bit | ✅ Full |
-| RC4 | 128-bit | ✅ Full |
-| AES | 128-bit | ✅ Full |
-| AES | 256-bit | ✅ Full |
+| RC4 | 40-bit | Full |
+| RC4 | 128-bit | Full |
+| AES | 128-bit | Full |
+| AES | 256-bit | Full |
 
 #### Table Detection (`internal/tabledetect/`)
 
@@ -306,6 +388,16 @@ c.SetEncryption(creator.EncryptionOptions{
 })
 ```
 
+The builder API applies the same pattern at the document level:
+
+```go
+doc := builder.NewBuilder(
+    builder.WithPageSize(builder.Letter),
+    builder.WithDefaultFontSize(11),
+    builder.WithAuthor("ACME Corp"),
+)
+```
+
 ### 5. Error Context
 
 Errors with full context for debugging:
@@ -315,6 +407,8 @@ if err != nil {
     return fmt.Errorf("parse xref at offset %d: %w", offset, err)
 }
 ```
+
+The builder accumulates errors and surfaces them all at once from `Build()`, so callers do not need to check errors at every content-adding step.
 
 ## Testing Strategy
 
@@ -338,10 +432,12 @@ go test -bench=. -benchmem ./...
 
 | Component | Target | Current |
 |-----------|--------|---------|
-| Parser | 80% | ✅ |
-| Fonts | 80% | ✅ |
-| Writer | 75% | ✅ |
-| Creator | 70% | ✅ |
+| Parser | 80% | Done |
+| Fonts | 80% | Done |
+| Writer | 75% | Done |
+| Creator | 70% | Done |
+| layout/ | 80% | 81% |
+| builder/ | 80% | 81% |
 
 ## Dependencies
 
@@ -370,20 +466,19 @@ go test -bench=. -benchmem ./...
 
 ## Future Roadmap
 
-### v0.1.1 (Current)
+### v0.7.0 "Builder & Signatures" (Done, unreleased)
 
-- [x] Full Unicode font embedding (Cyrillic, CJK, symbols)
-- [x] TrueType font subsetting with ToUnicode CMap
-- [x] Enterprise-grade PDF showcase
+- [x] Declarative Builder API (layout/ + builder/)
+- [x] Enterprise Tables (ColSpan, RowSpan, header repeat, page split)
+- [x] Rich Text (mixed-style inline text with baseline alignment)
+- [x] Digital Signatures (PAdES B-B/B-T, CMS/PKCS#7, RSA + ECDSA, zero deps)
+- [x] Text Measurement API (Standard 14 + TTF font metrics)
+- [x] Coverage 80%+ on all new packages (layout 85.7%, builder 80.6%, signature 80.7%)
 
-### v0.2.0 (Planned)
+### v0.8.0 "Generation Platform" (Planned)
 
-- [ ] Form filling (populate existing forms)
-- [ ] Form flattening
-- [ ] Digital signatures
-
-### Future
-
-- [ ] PDF/A compliance
-- [ ] SVG import
-- [ ] PDF rendering (to images)
+- [ ] HTML to PDF (separate module, uses Builder API)
+- [ ] QR Code + Barcode (Code128, EAN-13)
+- [ ] PDF/A compliance (A-1b, A-2b)
+- [ ] PDF/UA accessibility (tagged PDF)
+- [ ] Ready components (invoice, report, letter templates)

@@ -17,6 +17,86 @@
 
 ## Key Features
 
+### Declarative Builder API (NEW)
+
+QuestPDF-inspired declarative API with 12-column grid, automatic pagination, and composable components. Define documents as nested closures — the engine handles page breaks, header/footer repetition, and two-pass page number resolution automatically.
+
+```go
+import "github.com/coregx/gxpdf/builder"
+
+doc := builder.NewBuilder(
+    builder.WithPageSize(builder.A4),
+    builder.WithMargins(builder.Mm(20), builder.Mm(15), builder.Mm(20), builder.Mm(15)),
+    builder.WithTitle("Invoice"),
+    builder.WithDefaultFontSize(11),
+)
+
+doc.Page(func(page *builder.PageBuilder) {
+    page.Header(func(h *builder.Container) {
+        h.Row(func(r *builder.RowBuilder) {
+            r.Col(8, func(c *builder.ColBuilder) {
+                c.Text("ACME Corporation", builder.Bold(), builder.FontSize(16))
+            })
+            r.Col(4, func(c *builder.ColBuilder) {
+                c.Text("INVOICE", builder.Bold(), builder.FontSize(20),
+                    builder.AlignRight(), builder.TextColor(builder.Navy))
+            })
+        })
+        h.Line()
+    })
+
+    page.Content(func(content *builder.Container) {
+        content.Spacer(builder.Mm(10))
+        content.Row(func(r *builder.RowBuilder) {
+            r.Col(6, func(c *builder.ColBuilder) {
+                c.Text("Bill To:", builder.Bold())
+                c.Text("John Doe")
+                c.Text("123 Main Street")
+            })
+            r.Col(6, func(c *builder.ColBuilder) {
+                c.Text("Invoice #: INV-2026-001", builder.AlignRight())
+                c.Text("Date: March 23, 2026", builder.AlignRight())
+            })
+        })
+    })
+
+    page.Footer(func(f *builder.Container) {
+        f.PageNumber(builder.PageNum+" of "+builder.TotalPages,
+            builder.AlignCenter(), builder.FontSize(8), builder.TextColor(builder.Gray))
+    })
+})
+
+pdfBytes, err := doc.Build()
+```
+
+### Digital Signatures (NEW)
+
+Sign and verify PDF documents with zero external dependencies:
+
+```go
+import "github.com/coregx/gxpdf/signature"
+
+// Generate or load your certificate
+key, cert, _ := signature.GenerateTestCertificate()
+signer, _ := signature.NewLocalSigner(key, []*x509.Certificate{cert})
+
+// Sign a PDF
+signed, err := signature.SignDocument(pdfBytes, signer,
+    signature.WithReason("Approved"),
+    signature.WithLocation("Moscow"),
+)
+
+// Verify signatures
+infos, err := signature.Verify(signed)
+fmt.Println(infos[0].SignedBy, infos[0].Valid) // "CN=Test" true
+```
+
+- **PAdES B-B** — CMS/PKCS#7 with ESS signing-certificate-v2
+- **PAdES B-T** — RFC 3161 timestamping via `WithTimestamp(tsaURL)`
+- **RSA + ECDSA** — SHA-256 by default, SHA-384/512 configurable
+- **Verification** — ByteRange hash + CMS cryptographic verification
+- **Incremental update** — preserves existing content and prior signatures
+
 ### PDF Creation (Creator API)
 - **Text & Typography** - Rich text with multiple fonts, styles, and colors
 - **Graphics** - Lines, rectangles, circles, polygons, ellipses, arcs (wedge/chord), cubic and quadratic Bezier curves
@@ -54,7 +134,37 @@ go get github.com/coregx/gxpdf
 
 ## Quick Start
 
-### Creating a PDF Document
+### Creating a PDF with the Builder API
+
+```go
+package main
+
+import (
+    "log"
+    "github.com/coregx/gxpdf/builder"
+)
+
+func main() {
+    doc := builder.NewBuilder(
+        builder.WithPageSize(builder.A4),
+        builder.WithTitle("Hello World"),
+    )
+
+    doc.Page(func(page *builder.PageBuilder) {
+        page.Content(func(c *builder.Container) {
+            c.Text("Hello, GxPDF!", builder.Bold(), builder.FontSize(24))
+            c.Spacer(builder.Mm(5))
+            c.Text("Professional PDF creation in Go.")
+        })
+    })
+
+    if err := doc.BuildToFile("output.pdf"); err != nil {
+        log.Fatal(err)
+    }
+}
+```
+
+### Creating a PDF Document (Creator API)
 
 ```go
 package main
@@ -269,9 +379,12 @@ fmt.Printf("Pages: %d\n", doc.PageCount())
 
 ```
 github.com/coregx/gxpdf
-├── gxpdf.go          # Main entry point
+├── gxpdf.go          # Main entry point (Open, OpenWithPassword)
+├── builder/          # Declarative Builder API (12-col grid, tables, rich text)
+├── layout/           # Pure computation layout engine (zero PDF deps)
+├── signature/        # Digital signatures (PAdES B-B/B-T, verify)
 ├── export/           # Export formats (CSV, JSON, Excel)
-├── creator/          # PDF creation API
+├── creator/          # Low-level PDF creation API
 │   └── forms/        # Interactive form fields
 ├── logging/          # Configurable debug logging
 └── internal/         # Private implementation
