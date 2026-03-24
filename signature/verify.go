@@ -98,11 +98,10 @@ type sigDictLocation struct {
 // findSignatureDicts scans pdfData for /Type /Sig dictionaries and returns their locations.
 func findSignatureDicts(pdfData []byte) []sigDictLocation {
 	s := string(pdfData)
-	var locs []sigDictLocation
-
 	// Find all occurrences of /Type /Sig — each is a signature dictionary.
 	re := regexp.MustCompile(`<<[^<>]*?/Type\s*/Sig[^<>]*?(?:/ByteRange\s*\[\s*\d+\s+\d+\s+\d+\s+\d+\s*\])[^>]*?>>`)
 	matches := re.FindAllStringIndex(s, -1)
+	locs := make([]sigDictLocation, 0, len(matches))
 	for _, m := range matches {
 		locs = append(locs, sigDictLocation{start: m[0], end: m[1], raw: s[m[0]:m[1]]})
 	}

@@ -603,7 +603,8 @@ func sumHeights(rows []measuredRow) float64 {
 // buildAllBlocks converts measured rows into positioned Blocks for rendering.
 // It emits header, then body, then footer rows in sequence starting at Y=0.
 func (t *Table) buildAllBlocks(header, body, footer []measuredRow, colWidths []float64, tableWidth float64) []Block {
-	var blocks []Block
+	totalRows := len(header) + len(body) + len(footer)
+	blocks := make([]Block, 0, totalRows*4) // rows + bg + cells
 	cursorY := 0.0
 
 	for i := range header {
@@ -627,7 +628,7 @@ func (t *Table) buildAllBlocks(header, body, footer []measuredRow, colWidths []f
 
 // buildRowBlocks creates Blocks for a single measured row.
 func buildRowBlocks(mr *measuredRow, colWidths []float64, tableWidth, rowY float64) []Block {
-	var blocks []Block
+	blocks := make([]Block, 0, 1+len(mr.cellRecs))
 
 	rowH := mr.height
 	rowStyle := mr.row.Style.effective()

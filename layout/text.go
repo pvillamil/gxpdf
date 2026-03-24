@@ -35,7 +35,7 @@ func (t *Text) PlanLayout(area Area) Plan {
 	// Break into lines.
 	lines := resolver.LineBreak(font, t.Content, fontSize, area.Width)
 
-	var blocks []Block
+	blocks := make([]Block, 0, len(lines))
 	cursorY := 0.0
 
 	for i, line := range lines {

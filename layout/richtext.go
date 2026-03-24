@@ -74,7 +74,7 @@ func (rt *RichText) PlanLayout(area Area) Plan {
 
 	lines := fillRichLines(runs, area.Width)
 
-	var blocks []Block
+	blocks := make([]Block, 0, len(lines))
 	cursorY := 0.0
 
 	for i, line := range lines {
