@@ -1081,7 +1081,7 @@ func newTestImageExtractor(t *testing.T) *ImageExtractor {
 func TestGetColorSpaceName_Nil(t *testing.T) {
 	ie := newTestImageExtractor(t)
 	result := ie.getColorSpaceName(nil)
-	if result != "DeviceRGB" {
+	if result != colorSpaceDeviceRGB {
 		t.Errorf("getColorSpaceName(nil) = %q, want DeviceRGB", result)
 	}
 }
@@ -1108,7 +1108,7 @@ func TestGetColorSpaceName_EmptyArray(t *testing.T) {
 	ie := newTestImageExtractor(t)
 	arr := parser.NewArray()
 	result := ie.getColorSpaceName(arr)
-	if result != "DeviceRGB" {
+	if result != colorSpaceDeviceRGB {
 		t.Errorf("getColorSpaceName(empty array) = %q, want DeviceRGB", result)
 	}
 }
@@ -1116,7 +1116,7 @@ func TestGetColorSpaceName_EmptyArray(t *testing.T) {
 func TestGetColorSpaceName_WrongType(t *testing.T) {
 	ie := newTestImageExtractor(t)
 	result := ie.getColorSpaceName(parser.NewInteger(42))
-	if result != "DeviceRGB" {
+	if result != colorSpaceDeviceRGB {
 		t.Errorf("getColorSpaceName(Integer) = %q, want DeviceRGB", result)
 	}
 }
@@ -1210,7 +1210,7 @@ func TestExtractImageFromStream_ValidRaw(t *testing.T) {
 	dict.Set("Width", parser.NewInteger(2))
 	dict.Set("Height", parser.NewInteger(2))
 	dict.Set("BitsPerComponent", parser.NewInteger(8))
-	dict.Set("ColorSpace", parser.NewName("DeviceRGB"))
+	dict.Set("ColorSpace", parser.NewName(colorSpaceDeviceRGB))
 	// Raw RGB data: 2x2 pixels = 12 bytes
 	rawData := make([]byte, 12)
 	stream := parser.NewStream(dict, rawData)

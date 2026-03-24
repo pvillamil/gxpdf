@@ -1,10 +1,10 @@
 package encoding
 
 import (
+	"bytes"
 	"image"
 	"image/color"
 	"image/jpeg"
-	"bytes"
 	"testing"
 )
 
@@ -73,10 +73,10 @@ func TestDCTDecoder_EncodeGray_InvalidData(t *testing.T) {
 	d := NewDCTDecoder()
 
 	tests := []struct {
-		name      string
-		data      []byte
-		width     int
-		height    int
+		name   string
+		data   []byte
+		width  int
+		height int
 	}{
 		{"too short", make([]byte, 9), 10, 10},
 		{"too long", make([]byte, 200), 10, 10},

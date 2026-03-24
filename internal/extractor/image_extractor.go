@@ -9,6 +9,9 @@ import (
 	"github.com/coregx/gxpdf/internal/parser"
 )
 
+// colorSpaceDeviceRGB is the default PDF color space for RGB images.
+const colorSpaceDeviceRGB = "DeviceRGB"
+
 // ImageExtractor extracts images from PDF pages.
 //
 // This is an application service that coordinates image extraction
@@ -257,7 +260,7 @@ func (e *ImageExtractor) decodeImageData(stream *parser.Stream, filter string) (
 // getColorSpaceName extracts the color space name from a PDF object.
 func (e *ImageExtractor) getColorSpaceName(obj parser.PdfObject) string {
 	if obj == nil {
-		return "DeviceRGB" // Default color space
+		return colorSpaceDeviceRGB // Default color space
 	}
 
 	// Direct name (e.g., /DeviceRGB)
@@ -274,7 +277,7 @@ func (e *ImageExtractor) getColorSpaceName(obj parser.PdfObject) string {
 		}
 	}
 
-	return "DeviceRGB" // Default
+	return colorSpaceDeviceRGB // Default
 }
 
 // getFilterName extracts the filter name from a PDF object.

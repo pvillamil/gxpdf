@@ -597,9 +597,9 @@ func TestWhitespaceAnalyzer_GroupIntoRows(t *testing.T) {
 
 	elements := []*extractor.TextElement{
 		extractor.NewTextElement("A", 0, 100, 50, 10, "/F1", 10),
-		extractor.NewTextElement("B", 60, 100, 50, 10, "/F1", 10),  // same row
-		extractor.NewTextElement("C", 0, 50, 50, 10, "/F1", 10),    // different row
-		extractor.NewTextElement("D", 60, 50, 50, 10, "/F1", 10),   // same as C
+		extractor.NewTextElement("B", 60, 100, 50, 10, "/F1", 10), // same row
+		extractor.NewTextElement("C", 0, 50, 50, 10, "/F1", 10),   // different row
+		extractor.NewTextElement("D", 60, 50, 50, 10, "/F1", 10),  // same as C
 	}
 
 	rows := wa.GroupIntoRows(elements)
@@ -843,7 +843,7 @@ func TestTableExtractor_ExtractTable_StreamInsufficientBoundaries(t *testing.T) 
 	te := NewTableExtractor([]*extractor.TextElement{})
 
 	region := NewTableRegion(extractor.NewRectangle(0, 0, 200, 100), MethodStream)
-	region.Rows = []float64{50}    // only 1 row boundary
+	region.Rows = []float64{50} // only 1 row boundary
 	region.Columns = []float64{0, 100}
 
 	_, err := te.ExtractTable(region)

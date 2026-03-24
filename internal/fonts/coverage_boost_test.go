@@ -1057,12 +1057,12 @@ func TestParseNameTable_WindowsPlatform(t *testing.T) {
 	data := make([]byte, 18+psLen)
 	data[0], data[1] = 0x00, 0x00 // format
 	data[2], data[3] = 0x00, 0x01 // count = 1
-	data[4], data[5] = byte(stringOffset >> 8), byte(stringOffset)
+	data[4], data[5] = byte(stringOffset>>8), byte(stringOffset)
 	// Record: platformID=3 (Windows), encodingID=1, languageID=0, nameID=6
-	data[6], data[7] = 0x00, 0x03       // platformID = 3 (Windows)
-	data[8], data[9] = 0x00, 0x01       // encodingID = 1
-	data[10], data[11] = 0x00, 0x00     // languageID
-	data[12], data[13] = 0x00, 0x06     // nameID = 6
+	data[6], data[7] = 0x00, 0x03   // platformID = 3 (Windows)
+	data[8], data[9] = 0x00, 0x01   // encodingID = 1
+	data[10], data[11] = 0x00, 0x00 // languageID
+	data[12], data[13] = 0x00, 0x06 // nameID = 6
 	data[14], data[15] = 0x00, byte(psLen)
 	data[16], data[17] = 0x00, 0x00 // offset = 0
 	copy(data[stringOffset:], utf16Data)
@@ -1086,7 +1086,7 @@ func TestParseNameTable_SkipsNonPostScriptID(t *testing.T) {
 	stringOffset := uint16(18)
 	data := make([]byte, 18+5)
 	data[2], data[3] = 0x00, 0x01 // count = 1
-	data[4], data[5] = byte(stringOffset >> 8), byte(stringOffset)
+	data[4], data[5] = byte(stringOffset>>8), byte(stringOffset)
 	data[6], data[7] = 0x00, 0x01   // platformID = 1
 	data[12], data[13] = 0x00, 0x01 // nameID = 1 (not 6)
 	data[14], data[15] = 0x00, 0x05 // length = 5
@@ -1399,7 +1399,7 @@ func TestParseRequiredTables_PostAndOS2ErrorsAreNonFatal(t *testing.T) {
 			"hmtx": {Data: hmtxData},
 			"cmap": {Data: cmapData},
 			// Deliberately malformed post and OS/2 tables to trigger non-fatal error paths.
-			"post": {Data: []byte{0x00}},            // too short → parsePostTable fails → non-fatal
+			"post": {Data: []byte{0x00}},             // too short → parsePostTable fails → non-fatal
 			"OS/2": {Data: []byte{0x00, 0x00, 0x00}}, // too short → parseOS2Table fails → non-fatal
 		},
 		GlyphWidths: make(map[uint16]uint16),
@@ -1422,7 +1422,7 @@ func TestParseOS2Table_TruncatedAfterVersion(t *testing.T) {
 	// WidthClass(2), FSType(2) = 10 bytes, then skip 56 = 66 bytes before sTypoAscender.
 	// Provide exactly 10 bytes — skipBytes(r, 56) will seek past end but not error
 	// (bytes.Reader.Seek allows seeking past end). The subsequent binary.Read will fail.
-	data := make([]byte, 10) // enough for first 5 reads but not skip+reads after
+	data := make([]byte, 10)      // enough for first 5 reads but not skip+reads after
 	data[0], data[1] = 0x00, 0x00 // version=0
 	f := &TTFFont{
 		Tables:      map[string]*TTFTable{"OS/2": {Data: data}},

@@ -337,7 +337,7 @@ func newTestTable() *Table {
 	tbl.SetCell(2, 0, internaltable.NewCell("E", 2, 0))
 	tbl.SetCell(2, 1, internaltable.NewCell("F", 2, 1))
 	tbl.PageNum = 2
-	tbl.Method = "Lattice"
+	tbl.Method = MethodLattice.String() //nolint:goconst // uses enum constant
 	return &Table{internal: tbl}
 }
 
@@ -484,7 +484,7 @@ func TestTable_Internal(t *testing.T) {
 	tbl := newTestTable()
 	internal := tbl.Internal()
 	if internal == nil {
-		t.Error("Internal() returned nil")
+		t.Fatal("Internal() returned nil")
 	}
 	if internal.RowCount != 3 {
 		t.Errorf("Internal().RowCount = %d, want 3", internal.RowCount)
