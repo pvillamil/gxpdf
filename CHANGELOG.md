@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.7.0] - 2026-03-24 "Builder & Signatures"
 
 ### Added
 - **Arc Drawing** - Elliptical and circular arcs with wedge/chord fill modes (#59)
@@ -16,7 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Full styling support: stroke, fill, gradient, opacity, dash patterns
   - Arc-to-cubic-Bezier approximation (1 segment per 90°, Goldapp/Riskus formula)
 - **Declarative Builder API** - QuestPDF-inspired document builder with automatic pagination
-  - `builder.NewBuilder()` with functional options (page size, margins, fonts, metadata)
+  - `builder.NewBuilder()` with functional options (page size, margins, fonts, metadata, default style)
+  - Default style options: `WithDefaultFontSize()`, `WithDefaultFontFamily()`, `WithDefaultColor()`, `WithDefaultLineHeight()`
   - 12-column grid layout via `Row()`/`Col()` with automatic page breaks
   - Text styling via functional options: `Bold()`, `Italic()`, `FontSize()`, `TextColor()`, `BgColor()`, `AlignCenter()`, `AlignRight()`, `AlignJustify()`, `Underline()`, `Strikethrough()`, `LetterSpacing()`, `LineHeight()`
   - Page structure: `Header()`, `Content()`, `Footer()` with auto-repeating headers/footers
@@ -26,13 +27,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 13 predefined colors + `Hex()` parser + `RGB()` / `RGB255()` constructors
   - Unit system: `Mm()`, `Cm()`, `In()`, `Pt()`, `Pct()`, `Fr()` — no `layout/` import needed
   - Per-page size and margin overrides via `page.Size()` / `page.Margins()`
-  - Row options: `RowHeight()`, `RowBg()` for explicit height and background color
+  - Row options: `RowHeight()`, `RowBg()`, `RowPadding()` for height, background, and padding
   - Image options: `FitWidth()`, `FitHeight()` for constrained image sizing
   - Line options: `LineColor()`, `LineWidth()` for horizontal rules
   - Custom font registration: `WithFont()` (bytes) and `WithFontFile()` (path)
   - `Build()` → `[]byte`, `BuildTo(io.Writer)`, `BuildToFile(path)` output methods
+  - Builder-owned types: `Value`, `Color`, `Size` — users import only `builder/`, never `layout/`
+  - Predefined page sizes: `A4`, `A3`, `Letter`, `Legal`
   - Pure computation layout engine (`layout/`) with zero PDF dependencies
   - Font measurement bridge for Standard 14 + custom TTF fonts
+  - Error accumulation: all errors returned on `Build()`, no silent failures
 - **Enterprise Tables** - Full-featured table layout in Builder API
   - `Table()` with `Columns()`, `Header()`, `Row()`, `Footer()` builders
   - Column widths: `Auto` (content-driven), `Fixed`, `Pct`, `Fr` (proportional)
