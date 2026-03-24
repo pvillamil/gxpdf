@@ -118,9 +118,9 @@ func (rt *RichText) MinWidth() float64 {
 		resolver = &MockFontResolver{}
 	}
 	max := 0.0
-	for _, frag := range rt.Fragments {
-		s := frag.Style.effective()
-		words := splitRichWords(frag.Text)
+	for i := range rt.Fragments {
+		s := rt.Fragments[i].Style.effective()
+		words := splitRichWords(rt.Fragments[i].Text)
 		for _, w := range words {
 			ww := resolver.MeasureString(s.Font, w, s.FontSize)
 			if ww > max {
@@ -139,9 +139,9 @@ func (rt *RichText) MaxWidth() float64 {
 		resolver = &MockFontResolver{}
 	}
 	total := 0.0
-	for _, frag := range rt.Fragments {
-		s := frag.Style.effective()
-		total += resolver.MeasureString(s.Font, frag.Text, s.FontSize)
+	for i := range rt.Fragments {
+		s := rt.Fragments[i].Style.effective()
+		total += resolver.MeasureString(s.Font, rt.Fragments[i].Text, s.FontSize)
 	}
 	return total
 }
@@ -152,12 +152,12 @@ func (rt *RichText) MaxWidth() float64 {
 // and space-level runs. Each run's width is measured via the font resolver.
 func fragmentsToRichRuns(fragments []RichTextFragment, resolver FontResolver) []richRun {
 	var runs []richRun
-	for _, frag := range fragments {
-		if frag.Text == "" {
+	for i := range fragments {
+		if fragments[i].Text == "" {
 			continue
 		}
-		s := frag.Style.effective()
-		parts := splitIntoWordsAndSpaces(frag.Text)
+		s := fragments[i].Style.effective()
+		parts := splitIntoWordsAndSpaces(fragments[i].Text)
 		for _, part := range parts {
 			isSpace := isAllSpaces(part)
 			w := resolver.MeasureString(s.Font, part, s.FontSize)
@@ -167,7 +167,7 @@ func fragmentsToRichRuns(fragments []RichTextFragment, resolver FontResolver) []
 				width:    w,
 				fontSize: s.FontSize,
 				isSpace:  isSpace,
-				url:      frag.URL,
+				url:      fragments[i].URL,
 			})
 		}
 	}
@@ -233,14 +233,14 @@ func fillRichLines(runs []richRun, availWidth float64) [][]richRun {
 	var currentLine []richRun
 	lineWidth := 0.0
 
-	for _, run := range runs {
-		if run.isSpace {
+	for i := range runs {
+		if runs[i].isSpace { //nolint:nestif // line-fill algorithm requires nested space/overflow logic
 			if len(currentLine) == 0 {
 				continue // skip leading spaces on a fresh line
 			}
-			if lineWidth+run.width <= availWidth {
-				currentLine = append(currentLine, run)
-				lineWidth += run.width
+			if lineWidth+runs[i].width <= availWidth {
+				currentLine = append(currentLine, runs[i])
+				lineWidth += runs[i].width
 			} else {
 				// Space falls exactly at line boundary — break here.
 				lines = append(lines, trimTrailingRichSpaces(currentLine))
@@ -250,16 +250,16 @@ func fillRichLines(runs []richRun, availWidth float64) [][]richRun {
 		} else {
 			if len(currentLine) == 0 {
 				// First word on a line always placed regardless of width.
-				currentLine = append(currentLine, run)
-				lineWidth = run.width
-			} else if lineWidth+run.width <= availWidth {
-				currentLine = append(currentLine, run)
-				lineWidth += run.width
+				currentLine = append(currentLine, runs[i])
+				lineWidth = runs[i].width
+			} else if lineWidth+runs[i].width <= availWidth {
+				currentLine = append(currentLine, runs[i])
+				lineWidth += runs[i].width
 			} else {
 				// Word overflows — commit current line, start fresh.
 				lines = append(lines, trimTrailingRichSpaces(currentLine))
-				currentLine = []richRun{run}
-				lineWidth = run.width
+				currentLine = []richRun{runs[i]}
+				lineWidth = runs[i].width
 			}
 		}
 	}
@@ -283,15 +283,24 @@ func trimTrailingRichSpaces(runs []richRun) []richRun {
 // Returns 12 if the line is empty or all sizes are zero.
 func maxRichFontSize(line []richRun) float64 {
 	max := 0.0
-	for _, run := range line {
-		if run.fontSize > max {
-			max = run.fontSize
+	for i := range line {
+		if line[i].fontSize > max {
+			max = line[i].fontSize
 		}
 	}
 	if max <= 0 {
 		return 12
 	}
 	return max
+}
+
+// runDraw holds pre-computed draw data for a single non-space run on a line.
+type runDraw struct {
+	text    string
+	x       float64
+	yOffset float64
+	style   Style
+	url     string
 }
 
 // placeRichLine builds a single layout Block for one wrapped line of mixed-
@@ -314,20 +323,33 @@ func placeRichLine(
 	cursorY float64,
 	isLastLine bool,
 ) Block {
-	// Measure total content width and count space runs.
+	baseX, extraPerGap := richLineAlignment(line, align, availWidth, isLastLine)
+	halfLeading := (lineSpacing - maxFS) / 2
+	drawRuns, endX := buildDrawRuns(line, align, isLastLine, baseX, extraPerGap, halfLeading, maxFS)
+	links := buildLinkAreas(drawRuns, availWidth, lineSpacing, endX)
+
+	capturedRuns := drawRuns
+	return Block{
+		X:      0,
+		Y:      cursorY,
+		Width:  availWidth,
+		Height: lineSpacing,
+		Links:  links,
+		Draw:   buildRichLineDraw(capturedRuns),
+	}
+}
+
+// richLineAlignment computes the horizontal start position and extra-per-gap
+// for a wrapped line based on alignment mode.
+func richLineAlignment(line []richRun, align Align, availWidth float64, isLastLine bool) (baseX, extraPerGap float64) {
 	contentWidth := 0.0
 	spaceCount := 0
-	for _, run := range line {
-		contentWidth += run.width
-		if run.isSpace {
+	for i := range line {
+		contentWidth += line[i].width
+		if line[i].isSpace {
 			spaceCount++
 		}
 	}
-
-	// Compute X start and extra space-per-gap for justified lines.
-	baseX := 0.0
-	extraPerGap := 0.0
-
 	switch align {
 	case AlignCenter:
 		baseX = (availWidth - contentWidth) / 2
@@ -338,104 +360,94 @@ func placeRichLine(
 			extraPerGap = (availWidth - contentWidth) / float64(spaceCount)
 		}
 	}
+	return baseX, extraPerGap
+}
 
-	// Half-leading distributes (lineSpacing - maxFS) equally above and below.
-	halfLeading := (lineSpacing - maxFS) / 2
-
-	// Capture loop variables for the Draw closure.
-	type runDraw struct {
-		text    string
-		x       float64
-		yOffset float64
-		style   Style
-		url     string
-	}
-
-	// Pre-compute per-run draw data (X positions and Y offsets).
-	drawRuns := make([]runDraw, 0, len(line))
+// buildDrawRuns converts line runs into pre-computed draw data. It returns the
+// slice of runDraw values and the final cursorX after the last run.
+func buildDrawRuns(
+	line []richRun,
+	align Align,
+	isLastLine bool,
+	baseX, extraPerGap, halfLeading, maxFS float64,
+) ([]runDraw, float64) {
+	draws := make([]runDraw, 0, len(line))
 	cursorX := baseX
-	for _, run := range line {
-		if run.isSpace {
-			spaceW := run.width
+	for i := range line {
+		if line[i].isSpace {
+			spaceW := line[i].width
 			if align == AlignJustify && !isLastLine {
 				spaceW += extraPerGap
 			}
 			cursorX += spaceW
 			continue
 		}
-		// Baseline alignment: shift smaller runs down to share the baseline.
-		yOffset := halfLeading + (maxFS - run.fontSize)
+		yOffset := halfLeading + (maxFS - line[i].fontSize)
 		if yOffset < 0 {
 			yOffset = 0
 		}
-		drawRuns = append(drawRuns, runDraw{
-			text:    run.text,
+		draws = append(draws, runDraw{
+			text:    line[i].text,
 			x:       cursorX,
 			yOffset: yOffset,
-			style:   run.style,
-			url:     run.url,
+			style:   line[i].style,
+			url:     line[i].url,
 		})
-		cursorX += run.width
+		cursorX += line[i].width
 	}
+	return draws, cursorX
+}
 
-	// Build LinkAreas for any URL-bearing runs.
+// buildLinkAreas constructs LinkArea values for any URL-bearing draw runs and
+// refines their widths using adjacent run positions.
+func buildLinkAreas(drawRuns []runDraw, availWidth, lineSpacing, endX float64) []LinkArea {
 	var links []LinkArea
-	for _, rd := range drawRuns {
-		if rd.url != "" {
-			// Approximate the run's width by re-deriving from its x span.
-			// We record the X range by checking the next run or line end.
-			// For simplicity we mark the full line height as the link area.
+	for i := range drawRuns {
+		if drawRuns[i].url != "" {
 			links = append(links, LinkArea{
-				X:      rd.x,
+				X:      drawRuns[i].x,
 				Y:      0,
-				Width:  availWidth - rd.x, // conservative; refined if needed
+				Width:  availWidth - drawRuns[i].x,
 				Height: lineSpacing,
-				URL:    rd.url,
+				URL:    drawRuns[i].url,
 			})
 		}
 	}
 	// Refine link widths: use next run's X when available.
 	for i := range links {
-		// Find corresponding drawRun with URL.
-		for j, rd := range drawRuns {
-			if rd.url != "" && rd.x == links[i].X {
-				// Use the gap to the next non-empty run as width.
+		for j := range drawRuns {
+			if drawRuns[j].url != "" && drawRuns[j].x == links[i].X {
 				if j+1 < len(drawRuns) {
-					links[i].Width = drawRuns[j+1].x - rd.x
+					links[i].Width = drawRuns[j+1].x - drawRuns[j].x
 				} else {
-					links[i].Width = cursorX - rd.x
+					links[i].Width = endX - drawRuns[j].x
 				}
 				break
 			}
 		}
 	}
+	return links
+}
 
-	capturedRuns := drawRuns
-	block := Block{
-		X:      0,
-		Y:      cursorY,
-		Width:  availWidth,
-		Height: lineSpacing,
-		Links:  links,
-		Draw: func(r Renderer) {
-			for _, rd := range capturedRuns {
-				r.DrawText(
-					rd.text,
-					rd.x,
-					rd.yOffset,
-					rd.style.Font,
-					rd.style.FontSize,
-					rd.style.Color,
-					TextDrawOptions{
-						LetterSpacing: rd.style.LetterSpacing,
-						Underline:     rd.style.Underline,
-						Strikethrough: rd.style.Strikethrough,
-					},
-				)
-			}
-		},
+// buildRichLineDraw returns a Draw closure that renders all runs on a line.
+func buildRichLineDraw(runs []runDraw) func(Renderer) {
+	return func(r Renderer) {
+		for i := range runs {
+			r.DrawText(
+				runs[i].text,
+				runs[i].x,
+				runs[i].yOffset,
+				runs[i].style.Font,
+				runs[i].style.FontSize,
+				runs[i].style.Color,
+				TextDrawOptions{
+					LetterSpacing: runs[i].style.LetterSpacing,
+					Underline:     runs[i].style.Underline,
+					Strikethrough: runs[i].style.Strikethrough,
+				},
+			)
+		}
 	}
-	return block
 }
 
 // rebuildRichOverflow reconstructs a RichText element from remaining lines of
@@ -453,11 +465,11 @@ func rebuildRichOverflow(lines [][]richRun, align Align, lineHeight float64, fon
 				})
 			}
 		}
-		for _, run := range line {
+		for j := range line {
 			fragments = append(fragments, RichTextFragment{
-				Text:  run.text,
-				Style: run.style,
-				URL:   run.url,
+				Text:  line[j].text,
+				Style: line[j].style,
+				URL:   line[j].url,
 			})
 		}
 	}

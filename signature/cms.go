@@ -135,6 +135,7 @@ func buildSignedAttributes(digest []byte, signingTime time.Time, cert *x509.Cert
 		return nil, fmt.Errorf("signature: marshal signing time: %w", err)
 	}
 
+	//nolint:prealloc // capacity known, literal initialization is clearer
 	attrs := []attribute{
 		{
 			Type:   oidContentType,

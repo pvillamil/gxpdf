@@ -461,83 +461,105 @@ func cellIntrinsicWidths(cell *TableCell) (minW, maxW float64) {
 func (t *Table) measureRows(rows []TableRow, colWidths []float64) []measuredRow {
 	nCols := len(colWidths)
 	colOccupied := make([]int, nCols)
-
 	result := make([]measuredRow, 0, len(rows))
 
 	for ri := range rows {
-		mr := measuredRow{row: rows[ri]}
-		cellIdx := 0
-		col := 0
-
-		for col < nCols && cellIdx < len(rows[ri].Cells) {
-			// Skip columns occupied by a rowspan from a previous row.
-			for col < nCols && colOccupied[col] > 0 {
-				colOccupied[col]--
-				col++
-			}
-			if col >= nCols || cellIdx >= len(rows[ri].Cells) {
-				break
-			}
-
-			cell := rows[ri].Cells[cellIdx]
-			colspan := cell.effectiveColSpan()
-			if col+colspan > nCols {
-				colspan = nCols - col
-			}
-			rowspan := cell.effectiveRowSpan()
-
-			// Cell width = sum of spanned column widths.
-			cellWidth := 0.0
-			for c := col; c < col+colspan; c++ {
-				cellWidth += colWidths[c]
-			}
-
-			rec := cellRecord{
-				cell:      cell,
-				colIndex:  col,
-				cellWidth: cellWidth,
-				rowSpan:   rowspan,
-			}
-			mr.cellRecs = append(mr.cellRecs, rec)
-
-			// Mark rowspan occupancy for future rows.
-			if rowspan > 1 {
-				for c := col; c < col+colspan; c++ {
-					colOccupied[c] = rowspan - 1
-				}
-			}
-
-			col += colspan
-			cellIdx++
-		}
-
-		// Drain remaining occupied columns for this row.
-		for col < nCols {
-			if colOccupied[col] > 0 {
-				colOccupied[col]--
-			}
-			col++
-		}
-
-		// Compute row height = max cell content height.
-		// Cells with rowspan > 1: divide their height across spanned rows.
-		maxH := 0.0
-		for i := range mr.cellRecs {
-			rec := &mr.cellRecs[i]
-			h := measureCellHeight(&rec.cell, rec.cellWidth)
-			if rec.rowSpan > 1 {
-				h /= float64(rec.rowSpan)
-			}
-			if h > maxH {
-				maxH = h
-			}
-		}
-
-		mr.height = maxH
+		mr := buildMeasuredRow(&rows[ri], colWidths, nCols, colOccupied)
+		mr.height = computeRowHeight(mr.cellRecs)
 		result = append(result, mr)
 	}
 
 	return result
+}
+
+// buildMeasuredRow constructs a measuredRow for a single TableRow, advancing
+// the colOccupied tracker to account for rowspan cells from previous rows.
+func buildMeasuredRow(row *TableRow, colWidths []float64, nCols int, colOccupied []int) measuredRow {
+	mr := measuredRow{row: *row}
+	cellIdx := 0
+	col := 0
+
+	for col < nCols && cellIdx < len(row.Cells) {
+		col = skipOccupiedCols(colOccupied, col, nCols)
+		if col >= nCols || cellIdx >= len(row.Cells) {
+			break
+		}
+
+		cell := row.Cells[cellIdx]
+		colspan := cell.effectiveColSpan()
+		if col+colspan > nCols {
+			colspan = nCols - col
+		}
+		rowspan := cell.effectiveRowSpan()
+
+		cellWidth := sumColWidths(colWidths, col, col+colspan)
+		mr.cellRecs = append(mr.cellRecs, cellRecord{
+			cell:      cell,
+			colIndex:  col,
+			cellWidth: cellWidth,
+			rowSpan:   rowspan,
+		})
+
+		markRowspanOccupancy(colOccupied, col, col+colspan, rowspan)
+
+		col += colspan
+		cellIdx++
+	}
+
+	// Drain remaining occupied columns for this row.
+	for ; col < nCols; col++ {
+		if colOccupied[col] > 0 {
+			colOccupied[col]--
+		}
+	}
+
+	return mr
+}
+
+// skipOccupiedCols advances col past any columns still occupied by a rowspan
+// from a prior row, decrementing their occupancy counters as it goes.
+func skipOccupiedCols(colOccupied []int, col, nCols int) int {
+	for col < nCols && colOccupied[col] > 0 {
+		colOccupied[col]--
+		col++
+	}
+	return col
+}
+
+// sumColWidths returns the total width of columns [start, end).
+func sumColWidths(colWidths []float64, start, end int) float64 {
+	total := 0.0
+	for c := start; c < end; c++ {
+		total += colWidths[c]
+	}
+	return total
+}
+
+// markRowspanOccupancy records rowspan occupancy for columns [start, end)
+// when rowspan > 1 so that subsequent rows skip those columns.
+func markRowspanOccupancy(colOccupied []int, start, end, rowspan int) {
+	if rowspan > 1 {
+		for c := start; c < end; c++ {
+			colOccupied[c] = rowspan - 1
+		}
+	}
+}
+
+// computeRowHeight returns the maximum cell height across all cellRecords,
+// dividing rowspan cells proportionally.
+func computeRowHeight(cellRecs []cellRecord) float64 {
+	maxH := 0.0
+	for i := range cellRecs {
+		rec := &cellRecs[i]
+		h := measureCellHeight(&rec.cell, rec.cellWidth)
+		if rec.rowSpan > 1 {
+			h /= float64(rec.rowSpan)
+		}
+		if h > maxH {
+			maxH = h
+		}
+	}
+	return maxH
 }
 
 // measureCellHeight returns the total height a cell needs including padding.

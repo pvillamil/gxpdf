@@ -253,7 +253,7 @@ func TestResolvePageNumbers_NoPlaceholders(t *testing.T) {
 // ------- measureSection tests -------
 
 func TestMeasureSection_Empty(t *testing.T) {
-	blocks, h := measureSection(nil, 200, &MockFontResolver{})
+	blocks, h := measureSection(nil, 200)
 	if len(blocks) != 0 {
 		t.Errorf("expected no blocks, got %d", len(blocks))
 	}
@@ -268,7 +268,7 @@ func TestMeasureSection_TwoElements(t *testing.T) {
 		makeTextElem("a"),
 		makeTextElem("b"),
 	}
-	_, h := measureSection(elements, 200, &MockFontResolver{})
+	_, h := measureSection(elements, 200)
 	if h != 20 {
 		t.Errorf("height: got %v, want 20", h)
 	}

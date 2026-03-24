@@ -25,7 +25,7 @@ type RichTextBuilder struct {
 //
 //	rt.Span("Important: ", builder.Bold(), builder.TextColor(builder.Red))
 func (rt *RichTextBuilder) Span(text string, opts ...TextOption) {
-	style := applyTextOptions(rt.baseStyle, opts)
+	style := applyTextOptions(&rt.baseStyle, opts)
 	rt.fragments = append(rt.fragments, layout.RichTextFragment{
 		Text:  text,
 		Style: style,
@@ -44,7 +44,7 @@ func (rt *RichTextBuilder) Link(text, url string, opts ...TextOption) {
 	linkBase := rt.baseStyle
 	linkBase.Color = layout.RGB(0.071, 0.357, 0.722) // #1259B8 — accessible link blue
 	linkBase.Underline = true
-	style := applyTextOptions(linkBase, opts)
+	style := applyTextOptions(&linkBase, opts)
 	rt.fragments = append(rt.fragments, layout.RichTextFragment{
 		Text:  text,
 		Style: style,

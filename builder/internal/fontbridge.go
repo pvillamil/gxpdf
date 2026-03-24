@@ -125,7 +125,7 @@ func (fb *FontBridge) LineBreak(font layout.FontRef, text string, size float64, 
 			candidate = current + " " + word
 		}
 
-		if fb.MeasureString(font, candidate, size) <= maxWidth {
+		if fb.MeasureString(font, candidate, size) <= maxWidth { //nolint:nestif // line-break logic
 			current = candidate
 		} else {
 			// Word doesn't fit on current line.

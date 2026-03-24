@@ -41,7 +41,7 @@ func (t *Text) PlanLayout(area Area) Plan {
 	for i, line := range lines {
 		if cursorY+lineSpacing > area.Height+0.01 && area.Height < 1e8 {
 			// Remaining lines overflow.
-			overflow := t.overflowText(joinStrings(lines[i:], " "), s)
+			overflow := t.overflowText(joinStrings(lines[i:], " "), &s)
 			status := Partial
 			if len(blocks) == 0 {
 				status = Nothing
@@ -131,10 +131,10 @@ func (t *Text) MaxWidth() float64 {
 // overflowText creates a new Text element for the remaining content after a
 // page break. It inherits the full style but strips margin/padding so they
 // are not doubled at the continuation point.
-func (t *Text) overflowText(content string, s Style) *Text {
+func (t *Text) overflowText(content string, s *Style) *Text {
 	return &Text{
 		Content: content,
-		Style:   s,
+		Style:   *s,
 		Fonts:   t.Fonts,
 	}
 }

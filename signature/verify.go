@@ -69,10 +69,7 @@ type SignatureInfo struct {
 // Note: Verify does not validate certificate chains or revocation status.
 // Use standard x509 pool verification for full PKI validation.
 func Verify(pdfData []byte) ([]*SignatureInfo, error) {
-	locs, err := findSignatureDicts(pdfData)
-	if err != nil {
-		return nil, fmt.Errorf("signature: find signature dicts: %w", err)
-	}
+	locs := findSignatureDicts(pdfData)
 	if len(locs) == 0 {
 		return nil, nil
 	}
@@ -99,7 +96,7 @@ type sigDictLocation struct {
 }
 
 // findSignatureDicts scans pdfData for /Type /Sig dictionaries and returns their locations.
-func findSignatureDicts(pdfData []byte) ([]sigDictLocation, error) {
+func findSignatureDicts(pdfData []byte) []sigDictLocation {
 	s := string(pdfData)
 	var locs []sigDictLocation
 
@@ -126,7 +123,7 @@ func findSignatureDicts(pdfData []byte) ([]sigDictLocation, error) {
 		}
 	}
 
-	return locs, nil
+	return locs
 }
 
 // verifyOne extracts and verifies a single signature dictionary.

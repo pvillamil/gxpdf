@@ -146,6 +146,8 @@ func DefaultStyle() Style {
 // effective returns a copy of the style with zero-value fields replaced
 // by defaults from the DefaultStyle. This allows partial styles (e.g.
 // only FontSize set) to be used safely by layout algorithms.
+//
+//nolint:gocritic // intentional value receiver — returns a modified copy without mutating the original
 func (s Style) effective() Style {
 	d := DefaultStyle()
 	if s.Font.Family == "" {

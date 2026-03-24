@@ -117,8 +117,8 @@ func LetterSpacing(pts float64) TextOption {
 
 // applyTextOptions applies a slice of TextOption values to a base Style and
 // returns the resulting Style. The base style is not mutated.
-func applyTextOptions(base layout.Style, opts []TextOption) layout.Style {
-	s := base
+func applyTextOptions(base *layout.Style, opts []TextOption) layout.Style {
+	s := *base
 	for _, opt := range opts {
 		opt.apply(&s)
 	}

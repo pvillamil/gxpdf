@@ -69,10 +69,10 @@ func (b *Box) PlanLayout(area Area) Plan {
 	var consumed float64
 
 	if b.Direction == Horizontal {
-		childBlocks, consumed = b.layoutHorizontal(innerWidth, innerHeight, s)
+		childBlocks, consumed = b.layoutHorizontal(innerWidth, innerHeight, &s)
 		// Horizontal boxes do not split across pages.
 	} else {
-		childBlocks, consumed, overflow = b.layoutVertical(innerWidth, innerHeight, s)
+		childBlocks, consumed, overflow = b.layoutVertical(innerWidth, innerHeight, &s)
 	}
 
 	// If KeepTogether is set and content overflowed, return Nothing so the
@@ -102,7 +102,7 @@ func (b *Box) PlanLayout(area Area) Plan {
 		Children: childBlocks,
 	}
 	// Draw at (0,0) relative to block origin — renderer adds block.X/Y.
-	outerBlock.Draw = buildBoxDraw(s, 0, 0, outerBlock.Width, outerBlock.Height)
+	outerBlock.Draw = buildBoxDraw(&s, 0, 0, outerBlock.Width, outerBlock.Height)
 
 	status := Full
 	if overflow != nil {
@@ -120,7 +120,7 @@ func (b *Box) PlanLayout(area Area) Plan {
 // layoutVertical stacks children top-to-bottom within the given inner area.
 // It returns the placed blocks, consumed height, and an overflow element if
 // not all children fit.
-func (b *Box) layoutVertical(innerWidth, innerHeight float64, s Style) ([]Block, float64, Element) {
+func (b *Box) layoutVertical(innerWidth, innerHeight float64, s *Style) ([]Block, float64, Element) {
 	var blocks []Block
 	cursorY := 0.0
 
@@ -185,7 +185,7 @@ func (b *Box) layoutVertical(innerWidth, innerHeight float64, s Style) ([]Block,
 // layoutHorizontal places children left-to-right within the inner area.
 // Children with an explicit Width are resolved first; remaining children
 // share the leftover space equally. Horizontal boxes do not split.
-func (b *Box) layoutHorizontal(innerWidth, innerHeight float64, s Style) ([]Block, float64) {
+func (b *Box) layoutHorizontal(innerWidth, innerHeight float64, s *Style) ([]Block, float64) {
 	if len(b.Children) == 0 {
 		return nil, 0
 	}
@@ -215,7 +215,7 @@ func (b *Box) layoutHorizontal(innerWidth, innerHeight float64, s Style) ([]Bloc
 
 // overflowBox creates a Box carrying the remaining children with the same
 // style, to be laid out on the next page.
-func (b *Box) overflowBox(children []Element, s Style) *Box {
+func (b *Box) overflowBox(children []Element, s *Style) *Box {
 	if len(children) == 0 {
 		return nil
 	}
@@ -273,7 +273,7 @@ func resolveChildWidths(children []Element, parentWidth, fontSize float64) []flo
 // buildBoxDraw returns a Draw closure that renders the background fill and
 // border of a box using the Renderer interface. It captures all required
 // data by value so the closure is safe to call later.
-func buildBoxDraw(s Style, x, y, width, height float64) func(Renderer) {
+func buildBoxDraw(s *Style, x, y, width, height float64) func(Renderer) {
 	bg := s.Background
 	border := s.Border
 

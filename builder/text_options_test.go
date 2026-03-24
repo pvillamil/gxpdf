@@ -128,7 +128,7 @@ func TestLetterSpacing(t *testing.T) {
 
 func TestApplyTextOptions_Composition(t *testing.T) {
 	base := layout.DefaultStyle()
-	result := applyTextOptions(base, []TextOption{
+	result := applyTextOptions(&base, []TextOption{
 		Bold(),
 		FontSize(18),
 		TextColor(Red),
@@ -156,7 +156,7 @@ func TestApplyTextOptions_Composition(t *testing.T) {
 
 func TestApplyTextOptions_LaterOverridesEarlier(t *testing.T) {
 	base := layout.DefaultStyle()
-	result := applyTextOptions(base, []TextOption{
+	result := applyTextOptions(&base, []TextOption{
 		FontSize(12),
 		FontSize(24), // should win
 	})
@@ -169,7 +169,7 @@ func TestApplyTextOptions_BaseNotMutated(t *testing.T) {
 	base := layout.DefaultStyle()
 	originalSize := base.FontSize
 
-	_ = applyTextOptions(base, []TextOption{FontSize(99)})
+	_ = applyTextOptions(&base, []TextOption{FontSize(99)})
 
 	if base.FontSize != originalSize {
 		t.Error("applyTextOptions must not mutate the base style")

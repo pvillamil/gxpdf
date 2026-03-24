@@ -32,7 +32,8 @@ func newContainer(b *Builder) *Container {
 //	c.Text("Hello World")
 //	c.Text("Important!", builder.Bold(), builder.FontSize(18), builder.TextColor(builder.Red))
 func (c *Container) Text(text string, opts ...TextOption) {
-	style := applyTextOptions(c.b.defaultStyle(), opts)
+	ds := c.b.defaultStyle()
+	style := applyTextOptions(&ds, opts)
 	elem := &layout.Text{
 		Content: text,
 		Style:   style,
@@ -57,7 +58,8 @@ func (c *Container) Text(text string, opts ...TextOption) {
 //	    rt.Span("year-over-year, driven by enterprise contract wins.")
 //	}, builder.FontSize(10), builder.LineHeight(1.5), builder.AlignJustify())
 func (c *Container) RichText(fn func(*RichTextBuilder), opts ...TextOption) {
-	baseStyle := applyTextOptions(c.b.defaultStyle(), opts)
+	ds := c.b.defaultStyle()
+	baseStyle := applyTextOptions(&ds, opts)
 	rtb := &RichTextBuilder{
 		b:         c.b,
 		baseStyle: baseStyle,
@@ -85,7 +87,8 @@ func (c *Container) RichText(fn func(*RichTextBuilder), opts ...TextOption) {
 //	c.PageNumber(builder.PageNum + " / " + builder.TotalPages,
 //	    builder.AlignRight(), builder.FontSize(8))
 func (c *Container) PageNumber(format string, opts ...TextOption) {
-	style := applyTextOptions(c.b.defaultStyle(), opts)
+	ds := c.b.defaultStyle()
+	style := applyTextOptions(&ds, opts)
 	elem := &layout.PageNumber{
 		Format: format,
 		Style:  style,

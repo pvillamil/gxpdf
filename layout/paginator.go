@@ -62,11 +62,6 @@ type Paginator struct {
 //  8. Nothing mid-page → flush page, retry on fresh page.
 //  9. After all pages are generated, resolve page number placeholders.
 func (p *Paginator) Paginate(pages []*PageDef) []PageLayout {
-	fonts := p.Fonts
-	if fonts == nil {
-		fonts = &MockFontResolver{}
-	}
-
 	var result []PageLayout
 
 	for _, def := range pages {
@@ -87,8 +82,8 @@ func (p *Paginator) Paginate(pages []*PageDef) []PageLayout {
 		}
 
 		// Measure header and footer once per page definition.
-		headerBlocks, headerHeight := measureSection(def.Header, contentWidth, fonts)
-		footerBlocks, footerHeight := measureSection(def.Footer, contentWidth, fonts)
+		headerBlocks, headerHeight := measureSection(def.Header, contentWidth)
+		footerBlocks, footerHeight := measureSection(def.Footer, contentWidth)
 
 		bodyHeight := contentHeight - headerHeight - footerHeight
 		if bodyHeight < 0 {
@@ -100,86 +95,12 @@ func (p *Paginator) Paginate(pages []*PageDef) []PageLayout {
 		copy(remaining, def.Content)
 
 		for len(remaining) > 0 {
-			var pageBlocks []Block
-			cursorY := 0.0
-			var nextRemaining []Element
+			pageBlocks, nextRemaining := buildPageBlocks(remaining, contentWidth, bodyHeight)
 
-			for len(remaining) > 0 {
-				elem := remaining[0]
-				availH := bodyHeight - cursorY
-
-				plan := elem.PlanLayout(Area{Width: contentWidth, Height: availH})
-
-				switch plan.Status {
-				case Full:
-					placed := cloneBlocks(plan.Blocks)
-					offsetBlocks(placed, 0, cursorY)
-					pageBlocks = append(pageBlocks, placed...)
-					cursorY += plan.Consumed
-					remaining = remaining[1:]
-
-				case Partial:
-					placed := cloneBlocks(plan.Blocks)
-					offsetBlocks(placed, 0, cursorY)
-					pageBlocks = append(pageBlocks, placed...)
-					cursorY += plan.Consumed
-					// Overflow goes to the next page; include remaining elements after it.
-					nextRemaining = make([]Element, 0, 1+len(remaining[1:]))
-					nextRemaining = append(nextRemaining, plan.Overflow)
-					nextRemaining = append(nextRemaining, remaining[1:]...)
-					remaining = nil // flush page
-
-				case Nothing:
-					if cursorY == 0 {
-						// Nothing at page top — force with unlimited height.
-						forcedPlan := elem.PlanLayout(Area{Width: contentWidth, Height: 1e9})
-						placed := cloneBlocks(forcedPlan.Blocks)
-						offsetBlocks(placed, 0, cursorY)
-						pageBlocks = append(pageBlocks, placed...)
-						cursorY += forcedPlan.Consumed
-						remaining = remaining[1:]
-						if forcedPlan.Overflow != nil {
-							nextRemaining = make([]Element, 0, 1+len(remaining))
-							nextRemaining = append(nextRemaining, forcedPlan.Overflow)
-							nextRemaining = append(nextRemaining, remaining...)
-							remaining = nil
-						}
-					} else {
-						// Nothing mid-page — flush page, retry this element on next page.
-						nextRemaining = remaining
-						remaining = nil
-					}
-				}
-			}
-
-			// Compose the full page by offsetting body, header, and footer by margins.
-			mx := resolvedMargins.Left
-			my := resolvedMargins.Top
-
-			var allBlocks []Block
-
-			// Header at top of content area.
-			if len(headerBlocks) > 0 {
-				hb := cloneBlocks(headerBlocks)
-				offsetBlocks(hb, mx, my)
-				allBlocks = append(allBlocks, hb...)
-			}
-
-			// Body below header.
-			bodyOffY := my + headerHeight
-			if len(pageBlocks) > 0 {
-				bb := cloneBlocks(pageBlocks)
-				offsetBlocks(bb, mx, bodyOffY)
-				allBlocks = append(allBlocks, bb...)
-			}
-
-			// Footer at bottom of content area.
-			if len(footerBlocks) > 0 {
-				fb := cloneBlocks(footerBlocks)
-				footerY := my + contentHeight - footerHeight
-				offsetBlocks(fb, mx, footerY)
-				allBlocks = append(allBlocks, fb...)
-			}
+			allBlocks := assemblePageLayout(
+				pageBlocks, headerBlocks, footerBlocks,
+				resolvedMargins, headerHeight, footerHeight, contentHeight,
+			)
 
 			result = append(result, PageLayout{
 				Size:   pageSize,
@@ -196,10 +117,134 @@ func (p *Paginator) Paginate(pages []*PageDef) []PageLayout {
 	return result
 }
 
+// buildPageBlocks fills one page worth of body blocks from remaining elements.
+// It returns the blocks placed on this page and the elements carried over to
+// the next page.
+func buildPageBlocks(remaining []Element, contentWidth, bodyHeight float64) (pageBlocks []Block, nextRemaining []Element) {
+	cursorY := 0.0
+
+	for len(remaining) > 0 {
+		elem := remaining[0]
+		availH := bodyHeight - cursorY
+
+		plan := elem.PlanLayout(Area{Width: contentWidth, Height: availH})
+
+		switch plan.Status {
+		case Full:
+			placed := cloneBlocks(plan.Blocks)
+			offsetBlocks(placed, 0, cursorY)
+			pageBlocks = append(pageBlocks, placed...)
+			cursorY += plan.Consumed
+			remaining = remaining[1:]
+
+		case Partial:
+			placed := cloneBlocks(plan.Blocks)
+			offsetBlocks(placed, 0, cursorY)
+			pageBlocks = append(pageBlocks, placed...)
+			// Overflow goes to the next page; include remaining elements after it.
+			nextRemaining = make([]Element, 0, 1+len(remaining[1:]))
+			nextRemaining = append(nextRemaining, plan.Overflow)
+			nextRemaining = append(nextRemaining, remaining[1:]...)
+			return pageBlocks, nextRemaining
+
+		case Nothing:
+			pageBlocks, nextRemaining, remaining = handleNothingStatus(
+				elem, remaining, pageBlocks, cursorY, contentWidth,
+			)
+			if nextRemaining != nil {
+				return pageBlocks, nextRemaining
+			}
+			// remaining was updated in-place; re-read cursorY from what was consumed.
+			// Since handleNothingStatus may have advanced cursorY, we recompute it.
+			cursorY = recomputeCursorY(pageBlocks)
+		}
+	}
+
+	return pageBlocks, nil
+}
+
+// handleNothingStatus processes a Nothing plan result. It either forces
+// placement at page top or flushes the page for mid-page nothing.
+// Returns updated pageBlocks, non-nil nextRemaining if page should flush,
+// and updated remaining slice.
+func handleNothingStatus(
+	elem Element,
+	remaining []Element,
+	pageBlocks []Block,
+	cursorY float64,
+	contentWidth float64,
+) (outBlocks []Block, nextRemaining []Element, outRemaining []Element) {
+	if cursorY == 0 {
+		// Nothing at page top — force with unlimited height.
+		forcedPlan := elem.PlanLayout(Area{Width: contentWidth, Height: 1e9})
+		placed := cloneBlocks(forcedPlan.Blocks)
+		offsetBlocks(placed, 0, cursorY)
+		pageBlocks = append(pageBlocks, placed...)
+		remaining = remaining[1:]
+		if forcedPlan.Overflow != nil {
+			next := make([]Element, 0, 1+len(remaining))
+			next = append(next, forcedPlan.Overflow)
+			next = append(next, remaining...)
+			return pageBlocks, next, nil
+		}
+		return pageBlocks, nil, remaining
+	}
+	// Nothing mid-page — flush page, retry this element on next page.
+	return pageBlocks, remaining, nil
+}
+
+// recomputeCursorY returns the Y position after the last placed block.
+// It is used after handleNothingStatus to restore the cursor correctly.
+func recomputeCursorY(blocks []Block) float64 {
+	if len(blocks) == 0 {
+		return 0
+	}
+	last := blocks[len(blocks)-1]
+	return last.Y + last.Height
+}
+
+// assemblePageLayout composes header, body, and footer blocks into a single
+// slice offset by margins, ready for the PageLayout.
+func assemblePageLayout(
+	pageBlocks, headerBlocks, footerBlocks []Block,
+	margins ResolvedEdges,
+	headerHeight, footerHeight, contentHeight float64,
+) []Block {
+	mx := margins.Left
+	my := margins.Top
+
+	var allBlocks []Block
+
+	// Header at top of content area.
+	if len(headerBlocks) > 0 {
+		hb := cloneBlocks(headerBlocks)
+		offsetBlocks(hb, mx, my)
+		allBlocks = append(allBlocks, hb...)
+	}
+
+	// Body below header.
+	bodyOffY := my + headerHeight
+	if len(pageBlocks) > 0 {
+		bb := cloneBlocks(pageBlocks)
+		offsetBlocks(bb, mx, bodyOffY)
+		allBlocks = append(allBlocks, bb...)
+	}
+
+	// Footer at bottom of content area.
+	if len(footerBlocks) > 0 {
+		fb := cloneBlocks(footerBlocks)
+		footerY := my + contentHeight - footerHeight
+		offsetBlocks(fb, mx, footerY)
+		allBlocks = append(allBlocks, fb...)
+	}
+
+	return allBlocks
+}
+
 // measureSection lays out a slice of elements at unlimited height and returns
 // their blocks and total consumed height. This is used to measure header and
 // footer sections.
-func measureSection(elements []Element, width float64, fonts FontResolver) ([]Block, float64) {
+func measureSection(elements []Element, width float64) ([]Block, float64) {
 	if len(elements) == 0 {
 		return nil, 0
 	}
