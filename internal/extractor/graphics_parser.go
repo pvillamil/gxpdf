@@ -271,7 +271,7 @@ func (gp *GraphicsParser) decodeStream(stream *parser.Stream) ([]byte, error) {
 
 	// Apply filter
 	switch filterName {
-	case "FlateDecode":
+	case filterFlateDecode:
 		// Use shared decoding logic from text extractor
 		te := &TextExtractor{reader: gp.reader}
 		return te.decodeFlateDecode(stream.Content())

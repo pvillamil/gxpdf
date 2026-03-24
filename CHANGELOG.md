@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **Test Coverage** — Project-wide coverage raised from 53.7% to 86.5%
+  - 11,200+ lines of new enterprise-grade tests across 12 packages
+  - All non-example packages now above 80% coverage threshold
+  - Wave 1: parser 83%, fonts 84.7%, builder/internal 92.3%, creator 83%
+  - Wave 2: encoding 91.3%, tabledetect 86.9%, document 98.4%
+  - Wave 3: writer 82.8%, extractor 83.8%, forms 84%, export 84.5%, root 86.5%
+- **Lint** — Extracted `filterFlateDecode` constant in extractor (goconst fix)
+
+---
+
 ## [0.7.0] - 2026-03-24 "Builder & Signatures"
 
 ### Added

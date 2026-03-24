@@ -73,7 +73,7 @@ jobs:
       continue-on-error: true
       with:
         use_oidc: true
-        file: ./coverage.txt
+        files: ./coverage.txt
         flags: unittests
         name: codecov-unit
 

@@ -11,6 +11,9 @@ import (
 	"github.com/coregx/gxpdf/logging"
 )
 
+// filterFlateDecode is the PDF filter name for zlib/deflate compression.
+const filterFlateDecode = "FlateDecode"
+
 // TextExtractor extracts text with positional information from PDF pages.
 //
 // The extractor processes PDF content streams and interprets text operators
@@ -187,7 +190,7 @@ func (te *TextExtractor) decodeStream(stream *parser.Stream) ([]byte, error) {
 
 	// Apply filter
 	switch filterName {
-	case "FlateDecode":
+	case filterFlateDecode:
 		return te.decodeFlateDecode(stream.Content())
 
 	case "":

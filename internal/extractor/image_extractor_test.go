@@ -45,7 +45,7 @@ func TestImageExtractor_getColorSpaceName(t *testing.T) {
 		{
 			name:     "nil object",
 			obj:      nil,
-			expected: "DeviceRGB", // Default
+			expected: colorSpaceDeviceRGB, // Default
 		},
 		// Additional tests would require parser.Name and parser.Array objects
 	}
