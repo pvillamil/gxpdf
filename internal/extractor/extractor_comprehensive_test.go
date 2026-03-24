@@ -1140,9 +1140,9 @@ func TestGetFilterName_DirectName(t *testing.T) {
 func TestGetFilterName_Array(t *testing.T) {
 	ie := newTestImageExtractor(t)
 	arr := parser.NewArray()
-	arr.Append(parser.NewName("FlateDecode"))
+	arr.Append(parser.NewName(filterFlateDecode))
 	result := ie.getFilterName(arr)
-	if result != "FlateDecode" {
+	if result != filterFlateDecode {
 		t.Errorf("getFilterName(Array) = %q, want FlateDecode", result)
 	}
 }
@@ -1370,7 +1370,7 @@ func TestDecodeStream_FlateDecode(t *testing.T) {
 	_ = w.Close()
 
 	dict := parser.NewDictionary()
-	dict.Set("Filter", parser.NewName("FlateDecode"))
+	dict.Set("Filter", parser.NewName(filterFlateDecode))
 	stream := parser.NewStream(dict, buf.Bytes())
 
 	data, err := te.decodeStream(stream)
@@ -1391,7 +1391,7 @@ func TestDecodeStream_FilterArray(t *testing.T) {
 	_ = w.Close()
 
 	filterArr := parser.NewArray()
-	filterArr.Append(parser.NewName("FlateDecode"))
+	filterArr.Append(parser.NewName(filterFlateDecode))
 
 	dict := parser.NewDictionary()
 	dict.Set("Filter", filterArr)
@@ -1607,7 +1607,7 @@ func TestGraphicsParser_DecodeStream_FlateDecode(t *testing.T) {
 	_ = w.Close()
 
 	dict := parser.NewDictionary()
-	dict.Set("Filter", parser.NewName("FlateDecode"))
+	dict.Set("Filter", parser.NewName(filterFlateDecode))
 	stream := parser.NewStream(dict, buf.Bytes())
 
 	data, err := gp.decodeStream(stream)
@@ -1631,7 +1631,7 @@ func TestGraphicsParser_DecodeStream_FilterArray(t *testing.T) {
 	_ = w.Close()
 
 	filterArr := parser.NewArray()
-	filterArr.Append(parser.NewName("FlateDecode"))
+	filterArr.Append(parser.NewName(filterFlateDecode))
 
 	dict := parser.NewDictionary()
 	dict.Set("Filter", filterArr)

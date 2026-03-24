@@ -78,7 +78,7 @@ func generateFormPDF() (string, error) {
 
 	// Xref table
 	xrefOffset := len(pdf)
-	write(fmt.Sprintf("xref\n0 9\n0000000000 65535 f \n"))
+	write("xref\n0 9\n0000000000 65535 f \n")
 	for i := 1; i <= 8; i++ {
 		write(fmt.Sprintf("%010d 00000 n \n", offsets[i]))
 	}

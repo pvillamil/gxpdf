@@ -275,13 +275,6 @@ func TestDCTDecoder_ExtractGeneric_Empty(t *testing.T) {
 // paletteImage is kept for documentation purposes — demonstrates the generic path
 // is reached only through direct method calls since jpeg.Decode never produces
 // non-YCbCr/Gray images.
-type paletteImage struct {
-	img *image.Paletted
-}
-
-func (p *paletteImage) ColorModel() color.Model { return p.img.ColorModel() }
-func (p *paletteImage) Bounds() image.Rectangle { return p.img.Bounds() }
-func (p *paletteImage) At(x, y int) color.Color { return p.img.At(x, y) }
 
 func TestDCTDecoder_Decode_MultipleImages(t *testing.T) {
 	d := NewDCTDecoder()
