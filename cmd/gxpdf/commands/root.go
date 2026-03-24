@@ -7,13 +7,22 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	// formatJSON is the output format name for JSON.
+	formatJSON = "json"
+	// formatCSV is the output format name for CSV.
+	formatCSV = "csv"
+	// unknownValue is the default placeholder for unset build-time variables.
+	unknownValue = "unknown"
+)
+
 var (
 	// Version is the application version (set at build time).
 	Version = "dev"
 	// GitCommit is the git commit hash (set at build time).
-	GitCommit = "unknown"
+	GitCommit = unknownValue
 	// BuildDate is the build date (set at build time).
-	BuildDate = "unknown"
+	BuildDate = unknownValue
 
 	// Global flags.
 	outputFormat string

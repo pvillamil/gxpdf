@@ -124,9 +124,9 @@ func outputTables(allTables []extractedTable) error {
 	}
 
 	switch outputFormat {
-	case "json":
+	case formatJSON:
 		return outputTablesJSON(out, allTables)
-	case "csv":
+	case formatCSV:
 		return outputTablesCSV(out, allTables)
 	default:
 		return outputTablesText(out, allTables)
