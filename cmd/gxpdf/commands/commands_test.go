@@ -109,8 +109,8 @@ func TestRunVersionCmd_WithBuildInfo(t *testing.T) {
 func TestRunVersionCmd_UnknownBuildInfo(t *testing.T) {
 	origCommit := GitCommit
 	origDate := BuildDate
-	GitCommit = "unknown"
-	BuildDate = "unknown"
+	GitCommit = unknownValue
+	BuildDate = unknownValue
 	defer func() {
 		GitCommit = origCommit
 		BuildDate = origDate
@@ -140,7 +140,7 @@ func TestRunInfo_TextFormat(t *testing.T) {
 func TestRunInfo_JSONFormat(t *testing.T) {
 	path := testPDFPath(t)
 	origFormat := outputFormat
-	outputFormat = "json"
+	outputFormat = formatJSON
 	defer func() { outputFormat = origFormat }()
 
 	err := runInfo(infoCmd, []string{path})
@@ -339,7 +339,7 @@ func TestRunTables_JSONFormat(t *testing.T) {
 	path := testPDFPath(t)
 	origFormat := outputFormat
 	origPage := tablesPage
-	outputFormat = "json"
+	outputFormat = formatJSON
 	tablesPage = 0
 	defer func() {
 		outputFormat = origFormat
@@ -354,7 +354,7 @@ func TestRunTables_CSVFormat(t *testing.T) {
 	path := testPDFPath(t)
 	origFormat := outputFormat
 	origPage := tablesPage
-	outputFormat = "csv"
+	outputFormat = formatCSV
 	tablesPage = 0
 	defer func() {
 		outputFormat = origFormat
@@ -404,7 +404,7 @@ func TestRunTables_OutputToFile(t *testing.T) {
 	origFormat := outputFormat
 	origPage := tablesPage
 	tablesOutput = tmpFile
-	outputFormat = "csv"
+	outputFormat = formatCSV
 	tablesPage = 0
 	defer func() {
 		tablesOutput = origOut
@@ -421,7 +421,7 @@ func TestRunTables_InvalidOutputDir(t *testing.T) {
 	origOut := tablesOutput
 	origFormat := outputFormat
 	tablesOutput = "/nonexistent/dir/tables.csv"
-	outputFormat = "csv"
+	outputFormat = formatCSV
 	defer func() {
 		tablesOutput = origOut
 		outputFormat = origFormat

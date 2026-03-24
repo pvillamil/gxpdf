@@ -59,7 +59,7 @@ func runInfo(_ *cobra.Command, args []string) error {
 	}
 
 	switch outputFormat {
-	case "json":
+	case formatJSON:
 		encoder := json.NewEncoder(os.Stdout)
 		encoder.SetIndent("", "  ")
 		return encoder.Encode(info)

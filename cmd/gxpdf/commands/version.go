@@ -15,10 +15,10 @@ var versionCmd = &cobra.Command{
 		fmt.Printf("gxpdf %s\n", Version)
 		fmt.Printf("  Go:         %s\n", runtime.Version())
 		fmt.Printf("  OS/Arch:    %s/%s\n", runtime.GOOS, runtime.GOARCH)
-		if GitCommit != "unknown" && GitCommit != "" {
+		if GitCommit != unknownValue && GitCommit != "" {
 			fmt.Printf("  Commit:     %s\n", GitCommit)
 		}
-		if BuildDate != "unknown" && BuildDate != "" {
+		if BuildDate != unknownValue && BuildDate != "" {
 			fmt.Printf("  Built:      %s\n", BuildDate)
 		}
 	},
