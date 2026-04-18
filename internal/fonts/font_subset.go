@@ -146,9 +146,9 @@ func (s *FontSubset) GetCharWidth(ch rune) uint16 {
 
 // MeasureString returns the width of a string in points.
 func (s *FontSubset) MeasureString(text string, size float64) float64 {
-	var totalWidth uint16
+	var totalWidth int
 	for _, ch := range text {
-		totalWidth += s.GetCharWidth(ch)
+		totalWidth += int(s.GetCharWidth(ch))
 	}
 
 	// Convert from font units to points.
