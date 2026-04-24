@@ -233,3 +233,75 @@ func TestIdentifyUsedGlyphs(t *testing.T) {
 		t.Errorf("expected glyph 1 at index 1, got %d", glyphs[1])
 	}
 }
+
+// TestMeasureString_NoUint16Overflow is a regression test for the uint16
+// overflow bug where totalWidth silently wrapped at 65536 font-units.
+func TestMeasureString_NoUint16Overflow(t *testing.T) {
+	font := &TTFFont{
+		UnitsPerEm:  1000,
+		GlyphWidths: map[uint16]uint16{1: 1000},
+		CharToGlyph: map[rune]uint16{'W': 1},
+	}
+	subset := NewFontSubset(font)
+
+	// 65 chars × 1000 width = 65000 font-units (below uint16 max of 65535).
+	// 66 chars × 1000 width = 66000 font-units (above uint16 max — old code wraps to 464).
+	tests := []struct {
+		name  string
+		count int
+	}{
+		{"just_below_uint16_max", 65},
+		{"crosses_uint16_boundary", 66},
+		{"well_above_uint16_max", 100},
+		{"double_uint16_range", 131},
+	}
+
+	size := 1.0
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			runes := make([]rune, tt.count)
+			for i := range runes {
+				runes[i] = 'W'
+			}
+			text := string(runes)
+
+			got := subset.MeasureString(text, size)
+			// Each char is 1000 font-units, UnitsPerEm=1000, size=1 → 1pt per char.
+			expected := float64(tt.count)
+			if got != expected {
+				t.Errorf("MeasureString(%d chars): got %.2f, want %.2f (delta=%.2f)",
+					tt.count, got, expected, got-expected)
+			}
+		})
+	}
+}
+
+// TestMeasureString_LinearScaling verifies that MeasureString scales linearly
+// with repetitions, catching any accumulator overflow at any multiplier.
+func TestMeasureString_LinearScaling(t *testing.T) {
+	font := &TTFFont{
+		UnitsPerEm:  2048,
+		GlyphWidths: map[uint16]uint16{1: 870},
+		CharToGlyph: map[rune]uint16{'H': 1},
+	}
+	subset := NewFontSubset(font)
+
+	base := "HHHHHHHHHH" // 10 chars × 870 = 8700 font-units per repeat
+	size := 12.0
+	baseWidth := subset.MeasureString(base, size)
+
+	for n := 1; n <= 20; n++ {
+		runes := make([]rune, 0, 10*n)
+		for i := 0; i < n; i++ {
+			runes = append(runes, []rune(base)...)
+		}
+		text := string(runes)
+
+		got := subset.MeasureString(text, size)
+		expected := baseWidth * float64(n)
+		delta := got - expected
+		if delta < -0.001 || delta > 0.001 {
+			t.Errorf("repeat=%d: got %.4f, want %.4f (delta=%.4f)", n, got, expected, delta)
+		}
+	}
+}
