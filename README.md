@@ -385,6 +385,20 @@ for _, f := range fonts {
 }
 ```
 
+### Extracting Vector Graphics (NEW)
+
+```go
+doc, _ := gxpdf.Open("diagram.pdf")
+defer doc.Close()
+
+// Extract all vector paths with colors, opacity, and CTM-transformed coordinates
+paths, _ := doc.GetVectorGraphicsForPage(1)
+for _, p := range paths {
+    fmt.Printf("Path: %d verbs, mode=%v, stroke=%v, fill=%v\n",
+        len(p.Verbs), p.PaintMode, p.StrokeColor, p.FillColor)
+}
+```
+
 ### Extracting Tables from PDFs
 
 ```go
