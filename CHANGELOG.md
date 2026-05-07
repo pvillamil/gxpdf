@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.8.0] - 2026-05-07 "Extraction & Access"
+
 ### Added
 - **Positioned Text Extraction** — `Page.ExtractTextElements()` and `Document.ExtractTextElementsFromPage()` return text runs with X, Y, Width, Height, FontName, FontSize (#68)
 - **In-Memory PDF Opening** — `OpenFromBytes()`, `OpenFromBytesWithPassword()`, and context-aware variants for server-side workflows without temp file I/O (#68)
@@ -18,15 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Stroke, fill, and fill-stroke paint modes with separate colors and opacity
   - Line cap, line join, miter limit extraction
 
+### Fixed
+- **uint16 overflow in FontSubset.MeasureString** — long strings no longer produce incorrect width calculations (#69, @yurikilian)
+
 ### Changed
 - **Parser Reader Refactor** — Internal `Reader` refactored from `*os.File` to `io.ReadSeeker` interface, enabling in-memory PDF support
 - **Test Coverage** — Project-wide coverage raised from 53.7% to 86.5%
   - 11,200+ lines of new enterprise-grade tests across 12 packages
   - All non-example packages now above 80% coverage threshold
-  - Wave 1: parser 83%, fonts 84.7%, builder/internal 92.3%, creator 83%
-  - Wave 2: encoding 91.3%, tabledetect 86.9%, document 98.4%
-  - Wave 3: writer 82.8%, extractor 83.8%, forms 84%, export 84.5%, root 86.5%
-- **Lint** — Extracted `filterFlateDecode` constant in extractor (goconst fix)
 
 ---
 
