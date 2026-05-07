@@ -342,6 +342,36 @@ for _, page := range doc.Pages() {
 }
 ```
 
+### Positioned Text Extraction (NEW)
+
+```go
+doc, _ := gxpdf.Open("document.pdf")
+defer doc.Close()
+
+// Get text with positions, sizes, and font info
+elements, _ := doc.ExtractTextElementsFromPage(1)
+for _, e := range elements {
+    fmt.Printf("%q at (%.1f, %.1f) font=%s size=%.1f\n",
+        e.Text, e.X, e.Y, e.FontName, e.FontSize)
+}
+```
+
+### Opening PDFs from Memory (NEW)
+
+```go
+// Read PDF from HTTP request, database, or any byte source
+data, _ := io.ReadAll(httpResponse.Body)
+
+doc, err := gxpdf.OpenFromBytes(data)
+if err != nil {
+    log.Fatal(err)
+}
+defer doc.Close()
+
+// Works with encrypted PDFs too
+doc, _ = gxpdf.OpenFromBytesWithPassword(data, "secret")
+```
+
 ### Extracting Tables from PDFs
 
 ```go

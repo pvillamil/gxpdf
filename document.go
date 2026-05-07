@@ -313,6 +313,29 @@ func (d *Document) ExtractTextFromPage(pageNum int) (string, error) {
 	return result, nil
 }
 
+// ExtractTextElementsFromPage extracts positioned text elements from a specific page.
+//
+// pageNum is 1-based. Returns an error if pageNum is out of range.
+//
+// This is a convenience wrapper around Page.ExtractTextElements.
+//
+// Example:
+//
+//	elements, err := doc.ExtractTextElementsFromPage(1)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	for _, e := range elements {
+//	    fmt.Printf("%q at (%.1f, %.1f)\n", e.Text, e.X, e.Y)
+//	}
+func (d *Document) ExtractTextElementsFromPage(pageNum int) ([]TextElement, error) {
+	if pageNum < 1 || pageNum > d.PageCount() {
+		return nil, fmt.Errorf("gxpdf: page %d out of range (1-%d)", pageNum, d.PageCount())
+	}
+	page := d.Page(pageNum - 1)
+	return page.ExtractTextElements()
+}
+
 // ExtractTablesFromPage extracts tables from a specific page (1-based).
 //
 // Errors are logged via slog. For error handling, use Page.ExtractTablesWithOptions.

@@ -130,39 +130,42 @@ Page sizes, custom dimensions, landscape orientation, and text rotation:
 
 ## Current Development
 
-### Unreleased (on main)
+### v0.7.0 "Builder & Signatures"
 
-- **Arc Drawing** (#59) — elliptical/circular arcs with wedge/chord fill modes
+**Released**: March 2026
+
 - **Declarative Builder API** — QuestPDF-inspired layout with 12-col grid, auto-pagination
 - **Enterprise Tables** — colspan, rowspan, header repeat, page split
-- **Rich Text** — multi-style inline text with mixed bold/italic/color
-- **Digital Signatures** — PAdES B-B/B-T, RSA + ECDSA, zero external deps
+- **Rich Text** — mixed-style inline text with baseline alignment, justify
+- **Digital Signatures** — PAdES B-B + B-T, CMS/PKCS#7, RFC 3161, zero deps
+- **Arc Drawing** (#59) — elliptical/circular arcs with wedge/chord fill modes
+- **Text Measurement API** — exported font metrics (Standard 14 + TTF)
+
+### Unreleased (on main)
+
+- **Positioned Text Extraction** (#68) — `ExtractTextElements()` with X, Y, Width, Height, FontName, FontSize
+- **In-Memory PDF Opening** (#68) — `OpenFromBytes()` for server-side workflows
+- **Embedded Font Extraction** (#67) — extract TTF/OTF font binaries for round-trip preservation
+- **Vector Graphics Extraction** (#66) — extract paths, bezier curves, colors, opacity with CTM support
 
 ### Planned
 
-#### v0.7.0 - "Builder & Signatures"
+#### v0.8.0 - "Extraction & Access"
 
-**Done (unreleased on main)**
+- **Positioned Text Extraction** (#68) — public API for text elements with positions
+- **In-Memory PDF Opening** (#68) — `OpenFromBytes()` without temp files
+- **Embedded Font Extraction** (#67) — TTF round-trip extraction
+- **Vector Graphics Extraction** (#66) — path verbs, CTM, q/Q stack, opacity
+- **Scientific Paper Text Extraction** — two-column layout detection, reading order
+- **Scientific Metadata Extraction** — title, authors, abstract, DOI via font heuristics
 
-- **Declarative Builder API** — QuestPDF-inspired layout with 12-col grid, auto-pagination
-  - `layout/` pure computation engine (85.7% coverage)
-  - `builder/` user-facing API (80.6% coverage)
-  - Own types (Value, Color, Size) — no layout/ import leak
-  - Font measurement bridge (Standard 14 + TTF)
-- **Enterprise Tables** — colspan, rowspan, header repeat on overflow, page split, auto/fixed/fr columns
-- **Rich Text** — mixed-style inline text with baseline alignment, justify
-- **Digital Signatures** — PAdES B-B + B-T, CMS/PKCS#7, RFC 3161, zero deps (80.7% coverage)
-- **Text Measurement API** — exported font metrics (Standard 14 + TTF)
-- **Half-leading** — optically centered text in line boxes
-
-#### v0.8.0 - "Generation Platform"
+#### v0.9.0 - "Generation Platform"
 
 - **HTML to PDF** — render HTML/CSS into PDF via Builder API
 - **QR Code + Barcode** — QR, Code128, EAN-13 generation
 - **PDF/A Compliance** — archival format (A-1b, A-2b)
 - **PDF/UA Accessibility** — tagged PDF for screen readers
 - **Ready Components** — invoice, report, letter templates
-- **HTML to PDF** - Render WYSIWYG HTML into PDF (may be separate library)
 
 #### v1.0.0 - Stable Release
 
@@ -212,16 +215,21 @@ Page sizes, custom dimensions, landscape orientation, and text rotation:
 | Text Opacity | Done | v0.5.0 |
 | Gradient Rendering (PDF Shading) | Done | v0.6.0 |
 | Encrypted PDF Reading | Done | v0.6.0 |
-| Arc Drawing (elliptical/circular) | Done | unreleased |
-| Declarative Builder API | Done | unreleased |
-| Tables with ColSpan/RowSpan | Planned | v0.7.0 |
-| Rich Text (mixed inline styles) | Planned | v0.7.0 |
-| Digital Signatures | Planned | v0.7.0 |
-| HTML to PDF | Planned | v0.8.0 |
-| PDF/A Compliance | Planned | v0.8.0 |
-| PDF Render to Image | Planned | v0.8.0 |
-| SVG Import | Planned | v0.8.0 |
-| Barcode / QR Code | Planned | v0.8.0 |
+| Arc Drawing (elliptical/circular) | Done | v0.7.0 |
+| Declarative Builder API | Done | v0.7.0 |
+| Tables with ColSpan/RowSpan | Done | v0.7.0 |
+| Rich Text (mixed inline styles) | Done | v0.7.0 |
+| Digital Signatures (PAdES) | Done | v0.7.0 |
+| Positioned Text Extraction | Done | unreleased |
+| In-Memory PDF Opening | Done | unreleased |
+| Embedded Font Extraction | Done | unreleased |
+| Vector Graphics Extraction | Done | unreleased |
+| Scientific Paper Text Extraction | Planned | v0.8.0 |
+| HTML to PDF | Planned | v0.9.0 |
+| PDF/A Compliance | Planned | v0.9.0 |
+| PDF Render to Image | Planned | v0.9.0 |
+| SVG Import | Planned | v0.9.0 |
+| Barcode / QR Code | Planned | v0.9.0 |
 
 ## Backlog
 
