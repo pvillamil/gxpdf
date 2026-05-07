@@ -130,6 +130,36 @@ Page sizes, custom dimensions, landscape orientation, and text rotation:
 
 ## Current Development
 
+### v0.8.0 "Extraction & Access"
+
+**Released**: May 2026
+
+Community-driven release — all three extraction features requested by @joa23:
+
+#### Positioned Text Extraction (#68)
+- `Page.ExtractTextElements()` — text runs with X, Y, Width, Height, FontName, FontSize
+- `Document.ExtractTextElementsFromPage()` — 1-based convenience method
+- Essential for layout analysis, content reflow, and accessibility tooling
+
+#### In-Memory PDF Opening (#68)
+- `OpenFromBytes()`, `OpenFromBytesWithPassword()` — no filesystem I/O
+- Context-aware variants for server-side workflows
+- Internal Reader refactored from `*os.File` to `io.ReadSeeker`
+
+#### Embedded Font Extraction (#67)
+- `Document.GetEmbeddedFonts()` — extract TTF/OTF font binaries
+- TrueType + Type0/CIDFontType2 support
+- `fonts.LoadTTFFromBytes()` — round-trip back into Creator API
+
+#### Vector Graphics Extraction (#66)
+- `Document.GetVectorGraphics()` — paths, bezier curves, colors, opacity
+- Path verb + coordinates model compatible with [gogpu/gg](https://github.com/gogpu/gg)
+- Graphics state stack (`q`/`Q`), CTM tracking, CMYK→RGB
+- Stroke, fill, fill-stroke paint modes with separate colors
+
+#### Bug Fix
+- uint16 overflow in `FontSubset.MeasureString` (#69, @yurikilian)
+
 ### v0.7.0 "Builder & Signatures"
 
 **Released**: March 2026
@@ -141,29 +171,18 @@ Page sizes, custom dimensions, landscape orientation, and text rotation:
 - **Arc Drawing** (#59) — elliptical/circular arcs with wedge/chord fill modes
 - **Text Measurement API** — exported font metrics (Standard 14 + TTF)
 
-### Unreleased (on main)
-
-- **Positioned Text Extraction** (#68) — `ExtractTextElements()` with X, Y, Width, Height, FontName, FontSize
-- **In-Memory PDF Opening** (#68) — `OpenFromBytes()` for server-side workflows
-- **Embedded Font Extraction** (#67) — extract TTF/OTF font binaries for round-trip preservation
-- **Vector Graphics Extraction** (#66) — extract paths, bezier curves, colors, opacity with CTM support
-
 ### Planned
 
-#### v0.8.0 - "Extraction & Access"
+#### v0.9.0 - "Scientific & Generation"
 
-- **Positioned Text Extraction** (#68) — public API for text elements with positions
-- **In-Memory PDF Opening** (#68) — `OpenFromBytes()` without temp files
-- **Embedded Font Extraction** (#67) — TTF round-trip extraction
-- **Vector Graphics Extraction** (#66) — path verbs, CTM, q/Q stack, opacity
-- **Scientific Paper Text Extraction** — two-column layout detection, reading order
-- **Scientific Metadata Extraction** — title, authors, abstract, DOI via font heuristics
-
-#### v0.9.0 - "Generation Platform"
-
-- **HTML to PDF** — render HTML/CSS into PDF via Builder API
+- **Scientific Paper Text Extraction** — two-column layout detection, reading order (ADR-001)
+- **Scientific Metadata Extraction** — title, authors, abstract, DOI via font heuristics (ADR-002)
 - **QR Code + Barcode** — QR, Code128, EAN-13 generation
 - **PDF/A Compliance** — archival format (A-1b, A-2b)
+
+#### v1.0.0 - "Full Platform"
+
+- **HTML to PDF** — render HTML/CSS into PDF via Builder API
 - **PDF/UA Accessibility** — tagged PDF for screen readers
 - **Ready Components** — invoice, report, letter templates
 
@@ -220,15 +239,15 @@ Page sizes, custom dimensions, landscape orientation, and text rotation:
 | Tables with ColSpan/RowSpan | Done | v0.7.0 |
 | Rich Text (mixed inline styles) | Done | v0.7.0 |
 | Digital Signatures (PAdES) | Done | v0.7.0 |
-| Positioned Text Extraction | Done | unreleased |
-| In-Memory PDF Opening | Done | unreleased |
-| Embedded Font Extraction | Done | unreleased |
-| Vector Graphics Extraction | Done | unreleased |
-| Scientific Paper Text Extraction | Planned | v0.8.0 |
-| HTML to PDF | Planned | v0.9.0 |
+| Positioned Text Extraction | Done | v0.8.0 |
+| In-Memory PDF Opening | Done | v0.8.0 |
+| Embedded Font Extraction | Done | v0.8.0 |
+| Vector Graphics Extraction | Done | v0.8.0 |
+| Scientific Paper Text Extraction | Planned | v0.9.0 |
+| HTML to PDF | Planned | v1.0.0 |
 | PDF/A Compliance | Planned | v0.9.0 |
-| PDF Render to Image | Planned | v0.9.0 |
-| SVG Import | Planned | v0.9.0 |
+| PDF Render to Image | Planned | v1.0.0 |
+| SVG Import | Planned | v1.0.0 |
 | Barcode / QR Code | Planned | v0.9.0 |
 
 ## Backlog
