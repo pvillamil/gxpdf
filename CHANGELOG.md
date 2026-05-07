@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **In-Memory PDF Opening** — `OpenFromBytes()`, `OpenFromBytesWithPassword()`, and context-aware variants for server-side workflows without temp file I/O (#68)
 - **Embedded Font Extraction** — `Document.GetEmbeddedFonts()` and `GetEmbeddedFontsForPage()` extract TTF/OTF font binaries from parsed PDFs for round-trip preservation (#67)
 - **LoadTTFFromBytes** — `fonts.LoadTTFFromBytes()` constructor for loading fonts from extracted binary data directly into Creator API
+- **Vector Graphics Extraction** — `Document.GetVectorGraphics()` and `GetVectorGraphicsForPage()` extract paths, bezier curves, colors, and opacity from parsed PDFs (#66)
+  - Path verb + coordinates model (MoveTo, LineTo, CubicTo, QuadTo, Close) compatible with gogpu/gg
+  - Graphics state stack (`q`/`Q`), CTM tracking (`cm`), CMYK→RGB conversion
+  - Stroke, fill, and fill-stroke paint modes with separate colors and opacity
+  - Line cap, line join, miter limit extraction
 
 ### Changed
 - **Parser Reader Refactor** — Internal `Reader` refactored from `*os.File` to `io.ReadSeeker` interface, enabling in-memory PDF support
