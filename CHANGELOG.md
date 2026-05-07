@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Positioned Text Extraction** — `Page.ExtractTextElements()` and `Document.ExtractTextElementsFromPage()` return text runs with X, Y, Width, Height, FontName, FontSize (#68)
 - **In-Memory PDF Opening** — `OpenFromBytes()`, `OpenFromBytesWithPassword()`, and context-aware variants for server-side workflows without temp file I/O (#68)
+- **Embedded Font Extraction** — `Document.GetEmbeddedFonts()` and `GetEmbeddedFontsForPage()` extract TTF/OTF font binaries from parsed PDFs for round-trip preservation (#67)
+- **LoadTTFFromBytes** — `fonts.LoadTTFFromBytes()` constructor for loading fonts from extracted binary data directly into Creator API
 
 ### Changed
 - **Parser Reader Refactor** — Internal `Reader` refactored from `*os.File` to `io.ReadSeeker` interface, enabling in-memory PDF support

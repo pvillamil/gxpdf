@@ -372,6 +372,19 @@ defer doc.Close()
 doc, _ = gxpdf.OpenFromBytesWithPassword(data, "secret")
 ```
 
+### Extracting Embedded Fonts (NEW)
+
+```go
+doc, _ := gxpdf.Open("document.pdf")
+defer doc.Close()
+
+// Extract all embedded fonts (TrueType, CIDFontType2)
+fonts, _ := doc.GetEmbeddedFonts()
+for _, f := range fonts {
+    fmt.Printf("Font: %s (%s), %d bytes\n", f.Name, f.Subtype, len(f.Data))
+}
+```
+
 ### Extracting Tables from PDFs
 
 ```go
