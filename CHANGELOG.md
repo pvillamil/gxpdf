@@ -7,7 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Positioned Text Extraction** — `Page.ExtractTextElements()` and `Document.ExtractTextElementsFromPage()` return text runs with X, Y, Width, Height, FontName, FontSize (#68)
+- **In-Memory PDF Opening** — `OpenFromBytes()`, `OpenFromBytesWithPassword()`, and context-aware variants for server-side workflows without temp file I/O (#68)
+
 ### Changed
+- **Parser Reader Refactor** — Internal `Reader` refactored from `*os.File` to `io.ReadSeeker` interface, enabling in-memory PDF support
 - **Test Coverage** — Project-wide coverage raised from 53.7% to 86.5%
   - 11,200+ lines of new enterprise-grade tests across 12 packages
   - All non-example packages now above 80% coverage threshold
