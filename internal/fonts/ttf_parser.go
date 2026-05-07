@@ -142,6 +142,31 @@ func LoadTTF(path string) (*TTFFont, error) {
 	return font, nil
 }
 
+// LoadTTFFromBytes parses a TrueType/OpenType font from an in-memory byte slice.
+//
+// This is the counterpart to LoadTTF for cases where font data is already in
+// memory — for example, when a font has been extracted from an existing PDF via
+// Document.GetEmbeddedFonts.
+//
+// The data slice is stored as FontData so the font can be re-embedded without
+// re-reading from disk. FilePath is left empty; callers may set it after
+// loading if the original path is known.
+//
+// Returns an error if the bytes do not represent a valid TrueType or OpenType
+// font with TrueType outlines.
+func LoadTTFFromBytes(data []byte) (*TTFFont, error) {
+	font := &TTFFont{
+		Tables:      make(map[string]*TTFTable),
+		GlyphWidths: make(map[uint16]uint16),
+		CharToGlyph: make(map[rune]uint16),
+		FontData:    data,
+	}
+	if err := font.parse(data); err != nil {
+		return nil, fmt.Errorf("parse TTF from bytes: %w", err)
+	}
+	return font, nil
+}
+
 // parse parses the font file structure.
 func (f *TTFFont) parse(data []byte) error {
 	r := bytes.NewReader(data)
