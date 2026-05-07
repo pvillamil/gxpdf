@@ -1,6 +1,8 @@
 package gxpdf
 
 import (
+	"fmt"
+
 	"github.com/coregx/gxpdf/internal/extractor"
 	"github.com/coregx/gxpdf/internal/tabledetect"
 	"github.com/coregx/gxpdf/logging"
@@ -46,6 +48,48 @@ func (p *Page) ExtractText() string {
 		result += elem.Text + " "
 	}
 	return result
+}
+
+// ExtractTextElements extracts positioned text elements from the page.
+//
+// Unlike ExtractText, which returns a plain string, ExtractTextElements
+// returns each text run with its position, size, and font information.
+// This is useful for layout analysis, text highlighting, and advanced
+// document intelligence tasks.
+//
+// Coordinates follow the PDF convention: origin (0,0) is at the bottom-left
+// of the page, X increases to the right, Y increases upward, in points
+// (1 pt = 1/72 inch).
+//
+// Example:
+//
+//	elements, err := page.ExtractTextElements()
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	for _, e := range elements {
+//	    fmt.Printf("%q at (%.1f, %.1f) size=%.1f\n", e.Text, e.X, e.Y, e.FontSize)
+//	}
+func (p *Page) ExtractTextElements() ([]TextElement, error) {
+	textExtractor := extractor.NewTextExtractor(p.doc.reader)
+	internal, err := textExtractor.ExtractFromPage(p.index)
+	if err != nil {
+		return nil, fmt.Errorf("gxpdf: failed to extract text elements from page %d: %w", p.index, err)
+	}
+
+	elements := make([]TextElement, len(internal))
+	for i, e := range internal {
+		elements[i] = TextElement{
+			Text:     e.Text,
+			X:        e.X,
+			Y:        e.Y,
+			Width:    e.Width,
+			Height:   e.Height,
+			FontName: e.FontName,
+			FontSize: e.FontSize,
+		}
+	}
+	return elements, nil
 }
 
 // ExtractTables extracts all tables from this page.

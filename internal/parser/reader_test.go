@@ -158,8 +158,8 @@ func TestReader_Close(t *testing.T) {
 	err = reader.Close()
 	assert.NoError(t, err)
 
-	// Verify file is closed (file handle should be nil)
-	assert.Nil(t, reader.file)
+	// Verify file is closed (closer and src should be nil after Close)
+	assert.Nil(t, reader.closer)
 
 	// Closing again should not error
 	err = reader.Close()

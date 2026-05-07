@@ -52,6 +52,9 @@ import (
 // Version is the current version of the gxpdf library.
 const Version = "0.1.0-alpha"
 
+// pathFromBytes is the path sentinel reported by Documents opened from in-memory bytes.
+const pathFromBytes = "<bytes>"
+
 // ErrPasswordRequired is returned when a password is needed to open an encrypted PDF.
 // Use OpenWithPassword to provide a password.
 var ErrPasswordRequired = security.ErrPasswordRequired
@@ -148,5 +151,81 @@ func OpenWithPasswordAndContext(ctx context.Context, path, password string) (*Do
 		reader: reader,
 		ctx:    ctx,
 		path:   path,
+	}, nil
+}
+
+// OpenFromBytes opens a PDF document from an in-memory byte slice.
+//
+// This is equivalent to Open but reads from memory instead of the filesystem.
+// It is useful when the PDF data has been received over the network, read from
+// a database, or produced in-process without writing to disk.
+//
+// The returned Document must be closed after use (Close is a no-op for
+// in-memory documents but should still be called for future compatibility).
+//
+// Example:
+//
+//	data, err := os.ReadFile("document.pdf")
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	doc, err := gxpdf.OpenFromBytes(data)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	defer doc.Close()
+//
+//	fmt.Printf("Pages: %d\n", doc.PageCount())
+func OpenFromBytes(data []byte) (*Document, error) {
+	return OpenFromBytesWithContext(context.Background(), data)
+}
+
+// OpenFromBytesWithContext opens a PDF document from an in-memory byte slice
+// with a custom context.
+//
+// The context can be used for cancellation and timeouts during table or text
+// extraction operations.
+func OpenFromBytesWithContext(ctx context.Context, data []byte) (*Document, error) {
+	reader, err := parser.OpenPDFFromBytes(data)
+	if err != nil {
+		return nil, fmt.Errorf("gxpdf: failed to open PDF from bytes: %w", err)
+	}
+
+	return &Document{
+		reader: reader,
+		ctx:    ctx,
+		path:   pathFromBytes,
+	}, nil
+}
+
+// OpenFromBytesWithPassword opens a password-protected PDF from an in-memory byte slice.
+//
+// For PDFs with an empty user password (permissions-only encryption),
+// OpenFromBytes handles them transparently.
+//
+// Example:
+//
+//	data, _ := os.ReadFile("encrypted.pdf")
+//	doc, err := gxpdf.OpenFromBytesWithPassword(data, "secret")
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	defer doc.Close()
+func OpenFromBytesWithPassword(data []byte, password string) (*Document, error) {
+	return OpenFromBytesWithPasswordAndContext(context.Background(), data, password)
+}
+
+// OpenFromBytesWithPasswordAndContext opens a password-protected in-memory PDF
+// with a custom context.
+func OpenFromBytesWithPasswordAndContext(ctx context.Context, data []byte, password string) (*Document, error) {
+	reader, err := parser.OpenPDFFromBytesWithPassword(data, password)
+	if err != nil {
+		return nil, fmt.Errorf("gxpdf: failed to open encrypted PDF from bytes: %w", err)
+	}
+
+	return &Document{
+		reader: reader,
+		ctx:    ctx,
+		path:   pathFromBytes,
 	}, nil
 }

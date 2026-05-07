@@ -53,7 +53,14 @@ const maxXRefChainDepth = 100
 //
 // Reference: PDF 1.7 specification, Section 7.5 (File Structure).
 type Reader struct {
-	file      *os.File
+	// src is the underlying byte source. For file-based readers this wraps *os.File;
+	// for in-memory readers (OpenFromBytes) this is *bytes.Reader.
+	src io.ReadSeeker
+	// closer holds the closer for file-based readers; nil for in-memory readers.
+	closer io.Closer
+	// fileSize is the total byte length of the PDF data, cached at open time.
+	fileSize int64
+
 	filename  string
 	version   string
 	xrefTable *XRefTable
@@ -99,6 +106,19 @@ func NewReader(filename string) *Reader {
 	}
 }
 
+// NewReaderFromBytes creates a new PDF reader backed by an in-memory byte slice.
+//
+// The reader operates entirely in memory — no file I/O is performed.
+// Call Open or openWithPassword to parse the document structure.
+func NewReaderFromBytes(data []byte) *Reader {
+	return &Reader{
+		src:         bytes.NewReader(data),
+		fileSize:    int64(len(data)),
+		objectCache: make(map[int]PdfObject),
+		objStmCache: make(map[int]map[int]PdfObject),
+	}
+}
+
 // Open opens the PDF file and parses its structure.
 //
 // For encrypted PDFs with an empty user password (the most common case for
@@ -121,14 +141,25 @@ func (r *Reader) Open() error {
 	return r.openWithPassword("")
 }
 
-// openWithPassword opens the PDF file and initializes decryption with the given password.
+// openWithPassword opens the PDF and initializes decryption with the given password.
+// For file-based readers (src == nil) this opens the file and caches its size.
+// For in-memory readers (src already set) this skips file I/O.
 func (r *Reader) openWithPassword(password string) error {
-	// Open file
-	file, err := os.Open(r.filename)
-	if err != nil {
-		return fmt.Errorf("failed to open file: %w", err)
+	if r.src == nil {
+		// File-based path: open the OS file and record its size.
+		file, err := os.Open(r.filename)
+		if err != nil {
+			return fmt.Errorf("failed to open file: %w", err)
+		}
+		fi, err := file.Stat()
+		if err != nil {
+			_ = file.Close()
+			return fmt.Errorf("failed to stat file: %w", err)
+		}
+		r.src = file
+		r.closer = file
+		r.fileSize = fi.Size()
 	}
-	r.file = file
 
 	// Read and validate header, get offset of leading whitespace
 	version, headerOffset, err := r.readHeader()
@@ -168,10 +199,12 @@ func (r *Reader) openWithPassword(password string) error {
 }
 
 // Close closes the PDF file and releases resources.
+// For in-memory readers (created via NewReaderFromBytes), Close is a safe no-op.
 func (r *Reader) Close() error {
-	if r.file != nil {
-		err := r.file.Close()
-		r.file = nil
+	if r.closer != nil {
+		err := r.closer.Close()
+		r.closer = nil
+		r.src = nil
 		return err
 	}
 	return nil
@@ -209,13 +242,13 @@ const maxHeaderSearchSize = 1024
 // Reference: PDF 1.7 specification, Section 7.5.1 (File Header) and Appendix H.3.
 func (r *Reader) readHeader() (version string, headerOffset int64, err error) {
 	// Seek to start of file
-	if _, err := r.file.Seek(0, io.SeekStart); err != nil {
+	if _, err := r.src.Seek(0, io.SeekStart); err != nil {
 		return "", 0, fmt.Errorf("failed to seek to start: %w", err)
 	}
 
 	// Read first 1024 bytes (PDF spec Appendix H.3)
 	buf := make([]byte, maxHeaderSearchSize)
-	n, err := r.file.Read(buf)
+	n, err := r.src.Read(buf)
 	if err != nil && err != io.EOF {
 		return "", 0, fmt.Errorf("failed to read header: %w", err)
 	}
@@ -289,13 +322,7 @@ func (r *Reader) readHeader() (version string, headerOffset int64, err error) {
 //
 // Reference: PDF 1.7 specification, Section 7.5.5 (File Trailer).
 func (r *Reader) findStartXRef() (int64, error) {
-	// Get file size
-	fileInfo, err := r.file.Stat()
-	if err != nil {
-		return 0, fmt.Errorf("failed to stat file: %w", err)
-	}
-
-	size := fileInfo.Size()
+	size := r.fileSize
 	if size == 0 {
 		return 0, fmt.Errorf("file is empty")
 	}
@@ -335,13 +362,13 @@ func (r *Reader) searchForStartXRef(fileSize, searchSize int64) (int64, bool, er
 		searchSize = fileSize
 	}
 
-	if _, err := r.file.Seek(seekPos, io.SeekStart); err != nil {
+	if _, err := r.src.Seek(seekPos, io.SeekStart); err != nil {
 		return 0, false, fmt.Errorf("failed to seek to search region: %w", err)
 	}
 
 	// Read search region
 	buf := make([]byte, searchSize)
-	n, err := io.ReadFull(r.file, buf)
+	n, err := io.ReadFull(r.src, buf)
 	if err != nil && err != io.ErrUnexpectedEOF {
 		return 0, false, fmt.Errorf("failed to read search region: %w", err)
 	}
@@ -477,19 +504,19 @@ func (r *Reader) parseSingleXRef(offset int64) (*XRefTable, *Dictionary, error) 
 	adjustedOffset := r.adjustOffset(offset)
 
 	// Seek to XRef offset
-	if _, err := r.file.Seek(adjustedOffset, io.SeekStart); err != nil {
+	if _, err := r.src.Seek(adjustedOffset, io.SeekStart); err != nil {
 		return nil, nil, fmt.Errorf("failed to seek to xref at offset %d: %w", offset, err)
 	}
 
 	// Peek at first few bytes to determine xref type
 	peekBuf := make([]byte, 10)
-	n, err := r.file.Read(peekBuf)
+	n, err := r.src.Read(peekBuf)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to peek at xref: %w", err)
 	}
 
 	// Seek back to start of xref
-	if _, err := r.file.Seek(adjustedOffset, io.SeekStart); err != nil {
+	if _, err := r.src.Seek(adjustedOffset, io.SeekStart); err != nil {
 		return nil, nil, fmt.Errorf("failed to seek back to xref: %w", err)
 	}
 
@@ -510,7 +537,7 @@ func (r *Reader) parseSingleXRef(offset int64) (*XRefTable, *Dictionary, error) 
 	}
 
 	// Parse traditional xref table
-	parser := NewParser(r.file)
+	parser := NewParser(r.src)
 	xrefTable, err := parser.ParseXRef()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to parse xref table: %w", err)
@@ -528,16 +555,11 @@ func (r *Reader) parseSingleXRef(offset int64) (*XRefTable, *Dictionary, error) 
 //
 // Reference: PDF 1.7 specification, Section 7.5.8.
 func (r *Reader) parseXRefStream(xrefOffset int64) (*XRefTable, error) {
-	// Create a parser to read the object header and dictionary
-	parser := NewParser(r.file)
-
-	// Call the parser's ParseXRefStream, but we'll need to handle stream reading ourselves
-	// For now, let's parse just the object structure
-	xrefTable, err := parser.ParseXRefStreamWithFileAccess(r.file, xrefOffset)
+	parser := NewParser(r.src)
+	xrefTable, err := parser.ParseXRefStreamWithFileAccess(r.src, xrefOffset)
 	if err != nil {
 		return nil, err
 	}
-
 	return xrefTable, nil
 }
 
@@ -718,12 +740,16 @@ func (r *Reader) parseObjectAtOffset(offset int64) (*IndirectObject, error) {
 	r.fileMu.Lock()
 	defer r.fileMu.Unlock()
 
+	if r.src == nil {
+		return nil, fmt.Errorf("reader is closed")
+	}
+
 	adjustedOffset := r.adjustOffset(offset)
-	if _, err := r.file.Seek(adjustedOffset, io.SeekStart); err != nil {
+	if _, err := r.src.Seek(adjustedOffset, io.SeekStart); err != nil {
 		return nil, fmt.Errorf("failed to seek to offset %d: %w", offset, err)
 	}
 
-	parser := NewParser(r.file)
+	parser := NewParser(r.src)
 	return parser.ParseIndirectObject()
 }
 
@@ -767,11 +793,11 @@ func (r *Reader) scanDirection(startOffset int64, pattern []byte, maxSize int, f
 	}
 
 	buf := make([]byte, maxSize)
-	if _, err := r.file.Seek(readOffset, io.SeekStart); err != nil {
+	if _, err := r.src.Seek(readOffset, io.SeekStart); err != nil {
 		return nil
 	}
 
-	n, err := r.file.Read(buf)
+	n, err := r.src.Read(buf)
 	if err != nil || n == 0 {
 		return nil
 	}
@@ -784,11 +810,11 @@ func (r *Reader) scanDirection(startOffset int64, pattern []byte, maxSize int, f
 
 	// Found it - seek to that position and parse
 	foundOffset := readOffset + int64(idx)
-	if _, err := r.file.Seek(foundOffset, io.SeekStart); err != nil {
+	if _, err := r.src.Seek(foundOffset, io.SeekStart); err != nil {
 		return nil
 	}
 
-	parser := NewParser(r.file)
+	parser := NewParser(r.src)
 	obj, err := parser.ParseIndirectObject()
 	if err != nil {
 		return nil
@@ -852,13 +878,13 @@ func (r *Reader) getCompressedObject(objectNum int, entry *XRefEntry) (PdfObject
 	// Seek to ObjStm (adjust for any leading whitespace before %PDF- header)
 	r.fileMu.Lock()
 	adjustedOffset := r.adjustOffset(objStmEntry.Offset)
-	if _, err := r.file.Seek(adjustedOffset, io.SeekStart); err != nil {
+	if _, err := r.src.Seek(adjustedOffset, io.SeekStart); err != nil {
 		r.fileMu.Unlock()
 		return nil, fmt.Errorf("failed to seek to ObjStm %d: %w", objStmNum, err)
 	}
 
 	// Parse ObjStm indirect object
-	parser := NewParser(r.file)
+	parser := NewParser(r.src)
 	indirectObj, err := parser.ParseIndirectObject()
 	r.fileMu.Unlock()
 
@@ -1633,6 +1659,33 @@ func (r *Reader) decryptParsedObject(obj PdfObject, objNum, genNum int) PdfObjec
 	default:
 		return obj
 	}
+}
+
+// OpenPDFFromBytes opens a PDF document from an in-memory byte slice.
+//
+// Equivalent to OpenPDF but reads from memory rather than the filesystem.
+// The data slice is not modified and does not need to remain valid after Open
+// returns, because bytes.NewReader retains its own reference.
+func OpenPDFFromBytes(data []byte) (*Reader, error) {
+	return openFromBytesWithPassword(data, "")
+}
+
+// OpenPDFFromBytesWithPassword opens an encrypted PDF from an in-memory byte slice
+// using the given password.
+//
+// For PDFs with an empty user password (permissions-only encryption),
+// use OpenPDFFromBytes — it handles empty passwords transparently.
+func OpenPDFFromBytesWithPassword(data []byte, password string) (*Reader, error) {
+	return openFromBytesWithPassword(data, password)
+}
+
+// openFromBytesWithPassword is the shared implementation for in-memory PDF opening.
+func openFromBytesWithPassword(data []byte, password string) (*Reader, error) {
+	reader := NewReaderFromBytes(data)
+	if err := reader.openWithPassword(password); err != nil {
+		return nil, err
+	}
+	return reader, nil
 }
 
 // OpenPDFWithPassword is a convenience function that creates a Reader and opens
